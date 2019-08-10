@@ -4,24 +4,24 @@
 ;==============================================================
 ; SDSC tag and SMS rom header
 ;==============================================================
-.sdsctag 1.2,"GAMENAME","SMSFrameWork Game Description","AUTHOR NAME"
+.SDSCTAG 1.2,"GAMENAME","SMSFrameWork Game Description","AUTHOR NAME"
 
 .RAMSECTION "Initialization State Variables" SLOT 3
     SMSFrameWork_Initialized DB
 .ENDS
 
 .BANK 0 SLOT 0
-.org $0000
-.section "SMSFramework Boot" FORCE
+.ORG $0000
+.SECTION "SMSFramework Boot" FORCE
 SMSFramework_Boot:
     ; Very first instructions.
     di                          ; Disable Interrupts
     im 1                        ; Set Interrupt mode 1
     jp SMSFramework_Bootstrap   ; Prepare for our bootstrap.  We do a jump here so that 
                                 ; we can get out before all the rst_* instructions
-.ends
+.ENDS
 
-.section "SMSFramework Bootstrap" FREE
+.SECTION "SMSFramework Bootstrap" FREE
 SMSFramework_Bootstrap:
     ; Indicate that we are NOT yet initialized.
     xor a
@@ -40,4 +40,4 @@ SMSFramework_Bootstrap:
     ; Let the Application take over.
     ei              ; Start listening for interrupts.
     halt            ; Wait for one to come in!
-.ends
+.ENDS
