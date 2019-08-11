@@ -7,19 +7,42 @@
 ; It should set a mode for the initial program.
 Application_Bootstrap:
     ; Set our initial mode
-    ld  de, gModeManagerDummyMode
+    ld  de, Mode1
     call ModeManager_Init
 
-FSMTesting:
-    ld  ix, gMyFSM
-    ld  hl, MyFSM_State1
-    call FSM_Init
-    call FSM_OnUpdate
+    ld  de, Mode2
+    call ModeManager_PushMode
 
-    ld  hl, MyFSM_State4
-    call FSM_ChangeState
+    call ModeManager_PopMode
+    call ModeManager_OnUpdate
 
     ret
+.ENDS
+
+.SECTION "Mode Manager Test" FREE
+;                                         OnVideoInterrupt    OnNMI               OnActive            OnInactive            OnUpdate            OnRender            OnEvent
+.DSTRUCT Mode1 INSTANCEOF ApplicationMode ModeDefaultHandler, ModeDefaultHandler, Mode1ActiveHandler, Mode1InactiveHandler, Mode1UpdateHandler, ModeDefaultHandler, ModeDefaultHandler
+.DSTRUCT Mode2 INSTANCEOF ApplicationMode ModeDefaultHandler, ModeDefaultHandler, Mode2ActiveHandler, Mode2InactiveHandler, ModeDefaultHandler, ModeDefaultHandler, ModeDefaultHandler
+
+
+ModeDefaultHandler:
+    ret
+
+Mode1ActiveHandler:
+    ret
+
+Mode1UpdateHandler:
+    ret
+
+Mode1InactiveHandler:
+    ret
+
+Mode2ActiveHandler:
+    ret
+
+Mode2InactiveHandler:
+    ret
+
 .ENDS
 
 .RAMSECTION "My FSM" SLOT 3
