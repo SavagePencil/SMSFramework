@@ -61,10 +61,9 @@ ModeManager_Init:
     inc hl
 
     ; Fill the rest of the stack with 0xFFFFs
-    ld  a, $FF
     ld  b, ( MODEMANAGER_MAX_MODE_DEPTH - 1 ) * 2
 -:
-    ld  (hl), a
+    ld  (hl), $FF
     inc hl
     djnz -
 
@@ -88,16 +87,12 @@ ModeManager_SetActive:
     push    de
 
     ; Tell the old active mode they are now inactive.
-    ld      hl, _ModeManager_SetActiveReturnLoc
-    push    hl      ; Set our return loc.
-
     ld      ix, (gModeManager.CurrMode)
     ld      l, (ix + ApplicationMode.OnInactive + 0)
     ld      h, (ix + ApplicationMode.OnInactive + 1)
     ld      a, MODE_MADE_INACTIVE
-    jp      (hl)
+    call    CallHL      ; Execute the function, then return here.
 
-_ModeManager_SetActiveReturnLoc:
     ; Record the new mode.
     pop     ix
     ld      (gModeManager.CurrMode), ix
@@ -122,16 +117,12 @@ ModeManager_PushMode:
 
     ; Tell the old active mode that they are inactive; someone
     ; else got pushed on top of them.
-    ld      hl, _ModeManager_PushModeReturnLoc
-    push    hl      ; Set our return loc.
-
     ld      ix, (gModeManager.CurrMode)
     ld      l, (ix + ApplicationMode.OnInactive + 0)
     ld      h, (ix + ApplicationMode.OnInactive + 1)
     ld      a, MODE_OTHER_POPPED_ON
-    jp      (hl)
+    call    CallHL      ; Execute the function, then return here.
 
-_ModeManager_PushModeReturnLoc:
     ; Update the new top of stack.
     ld      hl, (gModeManager.TopOfStack)
     inc     hl
@@ -168,23 +159,18 @@ _ModeManager_PushModeReturnLoc:
 ModeManager_PopMode:
     ; Tell the old active mode that they are inactive; they
     ; just got popped off.
-    ld      hl, _ModeManager_PopModeReturnLoc
-    push    hl      ; Set our return loc.
-
     ld      ix, (gModeManager.CurrMode)
     ld      l, (ix + ApplicationMode.OnInactive + 0)
     ld      h, (ix + ApplicationMode.OnInactive + 1)
     ld      a, MODE_POPPED_OFF
-    jp      (hl)
+    call    CallHL      ; Execute the function, then return here.
 
-_ModeManager_PopModeReturnLoc:
     ; Clear out the old mode and decrement the top of stack
-    ld      a, $FF
     ld      hl, (gModeManager.TopOfStack)
     inc     hl          ; Get to high byte
-    ld      (hl), a
+    ld      (hl), $FF
     dec     hl          ; Low byte
-    ld      (hl), a
+    ld      (hl), $FF
     dec     hl
     dec     hl
     ld      (gModeManager.TopOfStack), hl

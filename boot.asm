@@ -13,6 +13,14 @@
 .BANK 0 SLOT 0
 .ORG $0000
 .SECTION "SMSFramework Boot" FORCE
+;==============================================================================
+; SMSFramework_Boot
+; Our very first instructions.  Gets to the bootstrap quickly so that we can
+; free up the rst_* instructions.
+; INPUTS:  None
+; OUTPUTS:  None
+; Does not preserve any registers.
+;==============================================================================
 SMSFramework_Boot:
     ; Very first instructions.
     di                          ; Disable Interrupts
@@ -22,6 +30,14 @@ SMSFramework_Boot:
 .ENDS
 
 .SECTION "SMSFramework Bootstrap" FREE
+;==============================================================================
+; SMSFramework_Boot
+; Bookends the bootstrapping of the framework.  Let's the application
+; initialize itself, then waits for the interrupt system to take over.
+; INPUTS:  None
+; OUTPUTS:  None
+; Does not preserve any registers.
+;==============================================================================
 SMSFramework_Bootstrap:
     ; Indicate that we are NOT yet initialized.
     xor a
@@ -40,4 +56,17 @@ SMSFramework_Bootstrap:
     ; Let the Application take over.
     ei              ; Start listening for interrupts.
     halt            ; Wait for one to come in!
+.ENDS
+
+.SECTION "Helper Function CallHL" FREE
+;==============================================================================
+; CallHL
+; Helper function to set a return location immediately after a function pointer
+; call.
+; INPUTS:  HL = Function pointer to call.
+; OUTPUTS:  None
+; Does not preserve any registers.
+;==============================================================================
+CallHL:
+    jp (hl)
 .ENDS

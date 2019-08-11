@@ -7,15 +7,24 @@
 ; It should set a mode for the initial program.
 Application_Bootstrap:
     ; Set our initial mode
-    ld  de, Mode1
-    call ModeManager_Init
+    ld      de, Mode1
+    call    ModeManager_Init
 
-    ld  de, Mode2
-    call ModeManager_PushMode
+; Mode Testing
+_Application_Bootstrap_ModeTesting:
+    ld      de, Mode2
+    call    ModeManager_PushMode
 
-    call ModeManager_PopMode
-    call ModeManager_OnUpdate
+    call    ModeManager_PopMode
+    call    ModeManager_OnUpdate
 
+_Application_Bootstrap_FSMTesting:
+    ld      ix, gMyFSM
+    ld      hl, MyFSM_State1
+    call    FSM_Init
+    call    FSM_OnUpdate
+    ld      hl, MyFSM_State4
+    call    FSM_ChangeState
     ret
 .ENDS
 

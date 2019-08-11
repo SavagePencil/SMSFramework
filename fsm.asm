@@ -18,10 +18,6 @@
 ; Does not preserve any registers.
 ;==============================================================================
 FSM_OnUpdate:
-    ; Set our return location.
-    ld      hl, _FSM_OnUpdateReturnLoc
-    push    hl
-
     ; Get the pointer to the state.
     ld      l, (ix + FSM.CurrentState + 0)
     ld      h, (ix + FSM.CurrentState + 1)
@@ -31,9 +27,8 @@ FSM_OnUpdate:
     inc     hl
     ld      h, (hl)
     ld      l, a        ; HL now points to State.OnUpdate
-    jp      (hl)
+    call    CallHL      ; Execute the function, then return here.
 
-_FSM_OnUpdateReturnLoc:
     ; If the carry flag is NOT set, we're done
     ret     nc
     ; If we're here, time to transition to a new state.
@@ -53,9 +48,6 @@ _FSM_OnUpdateReturnLoc:
 FSM_ChangeState:
     push    hl      ; Save new state to transition to.
 
-    ld      hl, _FSM_ChangeStateOnExitReturnLoc
-    push    hl
-
     ; Get the pointer to the *current* state.
     ld      l, (ix + FSM.CurrentState + 0)
     ld      h, (ix + FSM.CurrentState + 1)
@@ -69,11 +61,9 @@ FSM_ChangeState:
     ld      a, (hl)
     inc     hl
     ld      h, (hl)
-    ld      l, a        ; HL now points to top of state
+    ld      l, a        ; HL now points to the OnExit
+    call    CallHL      ; Execute the function, then return here.
 
-    jp      (hl)        ; Call the current state's OnExit.
-
-_FSM_ChangeStateOnExitReturnLoc:    
     ; Store the new state as our current one.
     pop     hl          ; Get the new state.
     ; Fall through to the FSMInit
@@ -101,15 +91,10 @@ FSM_Init:
     ld      a, (hl)
     inc     hl
     ld      h, (hl)
-    ld      l, a        ; HL now points to top of state
+    ld      l, a        ; HL now points to the OnEnter
 
-    ; Set return loc
-    ld      de, _FSM_InitOnEnterReturnLoc
-    push    de
+    call    CallHL      ; Execute the function, then return here.
 
-    jp      (hl)        ; Call the new state's OnEnter
-
-_FSM_InitOnEnterReturnLoc:
     ; If the carry flag is NOT set, we're done.
     ret     nc
 
@@ -125,10 +110,6 @@ _FSM_InitOnEnterReturnLoc:
 ; Does not preserve any registers.
 ;==============================================================================
 FSM_OnEvent:
-    ; Set our return location.
-    ld      hl, _FSM_OnEventReturnLoc
-    push    hl
-
     ; Get the pointer to the state.
     ld      l, (ix + FSM.CurrentState + 0)
     ld      h, (ix + FSM.CurrentState + 1)
@@ -142,9 +123,9 @@ FSM_OnEvent:
     inc     hl
     ld      h, (hl)
     ld      l, a        ; HL now points to State.OnEvent
-    jp      (hl)
 
-_FSM_OnEventReturnLoc:
+    call    CallHL      ; Execute the function, then return here.
+
     ; If the carry flag is NOT set, we're done
     ret     nc
     ; If we're here, time to transition to a new state.
