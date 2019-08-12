@@ -1,11 +1,16 @@
 .include "boot.asm"
 .include "interrupts.asm"
 .include "FSM.asm"
+.include "vdp.asm"
+
 
 .SECTION "Application Bootstrap" FREE
 ; This routine sets up an initial state as part of the bootstrapping.
 ; It should set a mode for the initial program.
 Application_Bootstrap:
+    ; Setup the VDP
+    call    VDPManager_Init
+
     ; Set our initial mode
     ld      de, Mode1
     call    ModeManager_Init
@@ -18,6 +23,7 @@ _Application_Bootstrap_ModeTesting:
     call    ModeManager_PopMode
     call    ModeManager_OnUpdate
 
+; FSM Testing
 _Application_Bootstrap_FSMTesting:
     ld      ix, gMyFSM
     ld      hl, MyFSM_State1
