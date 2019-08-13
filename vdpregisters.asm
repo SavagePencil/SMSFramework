@@ -31,7 +31,7 @@
 ; Allows non-standard resolutions to change screen height.
 .DEFINE VDP_REGISTER0_ENABLE_NONSTANDARD_HEIGHTS        1 << 1
 
-; Sets a non-sync mode, which renders monochrome.
+; Sets an external sync mode, which renders monochrome.
 .DEFINE VDP_REGISTER0_DISABLE_SYNC                      1 << 0
 
 ;==============================================================================
@@ -120,8 +120,14 @@
 ; Any flags that are REQUIRED to be set.
 .DEFINE VDP_REGISTER6_REQUIRED_MASK                     $03
 
+; This determines where sprite patterns come from.  Sprites can only access up
+; to 256 individual tiles (8K).  By setting this, you can have sprites draw
+; from the second half of VRAM.  Normally, sprites use the lower 8K while BG
+; uses the upper 8K for additional tiles, sharing space with the tile map and
+; sprite attirbute table.
+; You might use this to have sprites use BG-only tiles.
+.DEFINE VDP_REGISTER6_SPRITEGENERATOR_0x0000            0
 .DEFINE VDP_REGISTER6_SPRITEGENERATOR_0x2000            ( VDP_REGISTER6_REQUIRED_MASK | ( 1 << 2 ) )
-.DEFINE VDP_REGISTER6_SPRITEGENERATOR_0x0000            VDP_REGISTER6_REQUIRED_MASK
 
 ;==============================================================================
 ; VDP REGISTER 7:  Overscan color index (taken from Sprite palette)
@@ -147,7 +153,7 @@
 .DEFINE VDP_REGISTER9_REQUIRED_MASK                     $00
 
 ;==============================================================================
-; VDP REGISTER 0xA:  Line Interrupt
+; VDP REGISTER 10:  Line Interrupt
 ;==============================================================================
 ; Any flags that are REQUIRED to be set.
-.DEFINE VDP_REGISTERA_REQUIRED_MASK                     $00
+.DEFINE VDP_REGISTER10_REQUIRED_MASK                     $00
