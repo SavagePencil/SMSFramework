@@ -35,10 +35,24 @@ _Application_Bootstrap_FSMTesting:
 .ENDS
 
 .SECTION "Mode Manager Test" FREE
-;                                         OnVideoInterrupt    OnNMI               OnActive            OnInactive            OnUpdate            OnRender            OnEvent
-.DSTRUCT Mode1 INSTANCEOF ApplicationMode ModeDefaultHandler, ModeDefaultHandler, Mode1ActiveHandler, Mode1InactiveHandler, Mode1UpdateHandler, ModeDefaultHandler, ModeDefaultHandler
-.DSTRUCT Mode2 INSTANCEOF ApplicationMode ModeDefaultHandler, ModeDefaultHandler, Mode2ActiveHandler, Mode2InactiveHandler, ModeDefaultHandler, ModeDefaultHandler, ModeDefaultHandler
-
+.DSTRUCT Mode1 INSTANCEOF ApplicationMode VALUES
+    VideoInterruptJumpTarget:   .dw ModeDefaultHandler
+    OnNMI:                      .dw ModeDefaultHandler
+    OnActive:                   .dw Mode1ActiveHandler
+    OnInactive:                 .dw Mode1InactiveHandler
+    OnUpdate:                   .dw Mode1UpdateHandler
+    OnRender:                   .dw ModeDefaultHandler
+    OnEvent:                    .dw ModeDefaultHandler  
+.ENDST
+.DSTRUCT Mode2 INSTANCEOF ApplicationMode VALUES
+    VideoInterruptJumpTarget:   .dw ModeDefaultHandler
+    OnNMI:                      .dw ModeDefaultHandler
+    OnActive:                   .dw Mode2ActiveHandler
+    OnInactive:                 .dw Mode2InactiveHandler
+    OnUpdate:                   .dw ModeDefaultHandler
+    OnRender:                   .dw ModeDefaultHandler
+    OnEvent:                    .dw ModeDefaultHandler  
+.ENDST
 
 ModeDefaultHandler:
     ret
@@ -84,11 +98,35 @@ State4_OnEnter:
     scf         ; Indicate transition
     ret
 
-;                                      OnUpdate        OnEvent    OnEnter        OnExit
-.DSTRUCT MyFSM_State1 INSTANCEOF State State_NULL      State_NULL State1_OnEnter State_NULL
-.DSTRUCT MyFSM_State2 INSTANCEOF State State2_OnUpdate State_NULL State_NULL     State_NULL
-.DSTRUCT MyFSM_State3 INSTANCEOF State State_NULL      State_NULL State_NULL     State_NULL
-.DSTRUCT MyFSM_State4 INSTANCEOF State State_NULL      State_NULL State4_OnEnter State_NULL
-.DSTRUCT MyFSM_State5 INSTANCEOF State State_NULL      State_NULL State_NULL     State_NULL
+.DSTRUCT MyFSM_State1 INSTANCEOF State VALUES
+    OnUpdate:   .dw State_NULL      
+    OnEvent:    .dw State_NULL 
+    OnEnter:    .dw State1_OnEnter 
+    OnExit:     .dw State_NULL
+.ENDST  
+.DSTRUCT MyFSM_State2 INSTANCEOF State VALUES
+    OnUpdate:   .dw State2_OnUpdate      
+    OnEvent:    .dw State_NULL 
+    OnEnter:    .dw State_NULL 
+    OnExit:     .dw State_NULL
+.ENDST
+.DSTRUCT MyFSM_State3 INSTANCEOF State VALUES
+    OnUpdate:   .dw State_NULL      
+    OnEvent:    .dw State_NULL 
+    OnEnter:    .dw State_NULL 
+    OnExit:     .dw State_NULL
+.ENDST
+.DSTRUCT MyFSM_State4 INSTANCEOF State VALUES
+    OnUpdate:   .dw State_NULL      
+    OnEvent:    .dw State_NULL 
+    OnEnter:    .dw State4_OnEnter 
+    OnExit:     .dw State_NULL
+.ENDST
+.DSTRUCT MyFSM_State5 INSTANCEOF State VALUES
+    OnUpdate:   .dw State_NULL      
+    OnEvent:    .dw State_NULL 
+    OnEnter:    .dw State_NULL 
+    OnExit:     .dw State_NULL
+.ENDST
 
 .ENDS
