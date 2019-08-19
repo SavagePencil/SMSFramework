@@ -1,4 +1,5 @@
 .include "vdpregisters.asm"
+.include "vdpmemorymap.asm"
 
 .DEFINE VDP_VCOUNTER_PORT                               $7E
 .DEFINE VDP_HCOUNTER_PORT                               $7F
@@ -22,6 +23,92 @@
 .DEFINE VDP_COMMMAND_MASK_REGISTER8                     8
 .DEFINE VDP_COMMMAND_MASK_REGISTER9                     9
 .DEFINE VDP_COMMMAND_MASK_REGISTER10                    $A
+
+.DEFINE VDP_PATTERN_TABLE_START                         $0000  ; Constant
+.DEFINE VDP_PATTERN_TABLE_SIZE                          $3800  ; Constant
+.DEFINE VDP_NAMETABLE_SIZE                              $0700   ; 1792 bytes
+.DEFINE VDP_SAT_SIZE                                    $0100  ; Includes the gap
+.DEFINE VDP_SAT_UNUSED_GAP_LOC                          VDP_SAT_START_LOC + $0040
+.DEFINE VDP_SAT_UNUSED_GAP_SIZE                         $40    ; 64 bytes
+.DEFINE VDP_SAT_SECOND_HALF_LOC                         VDP_SAT_START_LOC + $0080
+.DEFINE VDP_SAT_SECOND_HALF_SIZE                        $80    ; 128 bytes
+
+.DEFINE VDP_PALETTE_NUM_PALETTES                        2       ; BG & Sprite
+.DEFINE VDP_PALETTE_ENTRIES_PER_PALETTE                 16
+.DEFINE VDP_PALETTE_BYTES_PER_ENTRY                     1       ; --BBGGRR
+.DEFINE VDP_PALETTE_BG_PALETTE_INDEX                    0       ; BG palettes go first
+.DEFINE VDP_PALETTE_SPRITE_PALETTE_INDEX                16      ; ...then sprite
+
+.DEFINE VDP_TILE_SIZE                                   32
+.DEFINE VDP_TILE_BITPLANES                              4
+.DEFINE VDP_TILE_LSB                                    0       ; Bit plane 0
+.DEFINE VDP_TILE_MSB                                    3       ; Bit plane 3
+;==============================================================================
+; VDP Memory Summary:
+; * The Palette lives in CRAM.  The VDP has 32 entries for palette entries.  
+;   This is stored in separate write-only CRAM memory.
+;   It has the following layout:
+;    + SMS:  1 byte per entry:  --BBGGRR.  6 bits per entry.
+;    + GG:  2 bytes per entry:  ----BBBB GGGGRRRR.  12 bits per entry.
+;   There are two palettes of 16 entries each:
+;    + Entries 0..15 cannot be used by Sprites, only the BG.
+;    + Entries 16..31 can be used by either Sprites or the BG.
+; * The VDP has 16K (0x4000) of VRAM that is shared by the following:
+;    + The Sprite Attribute Table (SAT):                256 bytes (ish)
+;    + The Name Table (usually a 32x28 screen map):    1792 bytes
+;    + The Pattern Table (~448 tiles, 32 bytes each): 14336 bytes
+; * The Sprite Attribute Table (SAT) is in VRAM and holds data for 64 sprites.  
+;   It can be located at any 256-byte boundary (e.g., $0000, $0100, etc.).
+;   It contains the following data for each sprite:
+;    + The Y position (1 byte)
+;    + The X position (1 byte)
+;    + The Tile Index (1 byte)
+;   ...it holds them in a block of 256 bytes, with a gap of 64 unused bytes 
+;   in the middle:
+;      Byte Offset   Meaning
+;         0x00       Sprite #0 Y pos
+;         0x01       Sprite #1 Y pos
+;          .
+;          .
+;         0x3F       Sprite #63 Y pos
+;         0x40       <Unused>
+;          .
+;          .
+;         0x7F       <End of unused section>
+;         0x80       Sprite #0 X pos
+;         0x81       Sprite #0 Tile Index
+;         0x82       Sprite #1 X pos
+;         0x83       Sprite #1 Tile Index
+;          .
+;          .
+;         0xFE       Sprite #63 X Pos
+;         0xFF       Sprite #63 Tile Index
+; * The Name Table lives in VRAM and holds data for the background.  This is
+;   usually a 32x28 grid of tiles, with only 32x24 tiles visibile at any
+;   given time.
+;   For the standard 256x192 resolution mode, it can be located at any 
+;   2K-byte boundary (e.g., 0x0800, 0x1000, etc.).
+;   Each cell is 2 bytes.  32x28x2 bytes = 1792 bytes.
+;   It contains the following data for each cell of the grid:
+;     + Bits 0-8:   Index of tile to use (0..512) from the Pattern Table
+;     + Bit 9:      Horizontally flip the tile?
+;     + Bit 10:     Vertically flip the tile?
+;     + Bit 11:     Should this use the BG palette, or the Sprite palette?
+;     + Bit 12:     Should this tile be in front of, or behind Sprites?
+;     + Bits 13-15: Unused.
+; * The Pattern Table lives in VRAM and holds the tile data.  
+;   In theory, it could hold 512 tiles worth of data, but because of the
+;   SAT and the Name Table, this is reduced to 448 tiles.  Each tile is
+;   32 bytes (8 pixels wide x 8 pixels tall x 4 bits per pixel).
+;   We get a final size of (32 bytes x 512 tiles) - (SAT + Name Table) or
+;   16384 - (256 + 1792) = 14336 bytes.
+;   The Pattern Table MUST begin at 0x0000 in VRAM.
+;   Patterns are 4 planes of 8 bits each, and look like this:
+;     + Bits 0..7:   Least-significant bits of palette entry, right-to-left
+;     + Bits 8..15:  Bit 1 of each pixel's palette entry.
+;     + Bits 16..23: Bit 2 of each pixel's palette entry.
+;     + Bits 24..31: Bit 3 of each pixel's palette entry.
+;==============================================================================
 
 ; Maintains a copy of the VDP registers
 .STRUCT VDPRegisterShadow
@@ -102,14 +189,14 @@ VDPDefaults_Begin:
     .db VDP_COMMMAND_MASK_REGISTER0, VDP_REGISTER0_REQUIRED_MASK | VDP_REGISTER0_MODE_4_SELECT
     ; R1:  Display is OFF.  Regular 256x192 mode.
     .db VDP_COMMMAND_MASK_REGISTER1, VDP_REGISTER1_REQUIRED_MASK
-    ; R2:  Set Name Table to 0x3800
-    .db VDP_COMMMAND_MASK_REGISTER2, VDP_REGISTER2_REQUIRED_MASK | VDP_REGISTER2_NAMETABLEADDRESS_0x3800
+    ; R2:  Set Name Table to loc specified in VDP Memory Map
+    .db VDP_COMMMAND_MASK_REGISTER2, VDP_REGISTER2_REQUIRED_MASK | ( VDP_NAMETABLE_START_LOC >> 10 )
     ; R3:  Nothing special
     .db VDP_COMMMAND_MASK_REGISTER3, VDP_REGISTER3_REQUIRED_MASK
     ; R4:  Nothing special
     .db VDP_COMMMAND_MASK_REGISTER4, VDP_REGISTER4_REQUIRED_MASK
-    ; R5:  SAT at 0x3F00 (just after the name table, running to the edge of 16K)
-    .db VDP_COMMMAND_MASK_REGISTER5, VDP_REGISTER5_REQUIRED_MASK | VDP_REGISTER5_SAT_BIT8 | VDP_REGISTER5_SAT_BIT9 | VDP_REGISTER5_SAT_BIT10 | VDP_REGISTER5_SAT_BIT11 | VDP_REGISTER5_SAT_BIT12 | VDP_REGISTER5_SAT_BIT13
+    ; R5:  SAT at loc indicated from the VDP Memory Map.
+    .db VDP_COMMMAND_MASK_REGISTER5, VDP_REGISTER5_REQUIRED_MASK | ( VDP_SAT_START_LOC >> 7 )
     ; R6:  Sprite generator at 0x0000.  Sprite tiles draw from the lower 8K.
     .db VDP_COMMMAND_MASK_REGISTER6, VDP_REGISTER6_REQUIRED_MASK | VDP_REGISTER6_SPRITEGENERATOR_0x0000
     ; R7:  Use Sprite Pal Entry 0 as Overdraw color.
@@ -124,7 +211,7 @@ VDPDefaults_End
 
 ;==============================================================================
 ; VDPManager_WriteRegister
-; Sets a register value, and maintains a shadow copy of it.
+; Immediately sets a register value, and maintains a shadow copy of it.
 ; INPUTS:  E:  Register to set
 ;          A:  Value to set
 ; OUTPUTS:  None
