@@ -38,6 +38,12 @@
 .DEFINE VDP_PALETTE_BYTES_PER_ENTRY                     1       ; --BBGGRR
 .DEFINE VDP_PALETTE_BG_PALETTE_INDEX                    0       ; BG palettes go first
 .DEFINE VDP_PALETTE_SPRITE_PALETTE_INDEX                16      ; ...then sprite
+.DEFINE VDP_PALETTE_BLUE_SHIFT                          4       ; --BB ----
+.DEFINE VDP_PALETTE_BLUE_MASK                           3 << VDP_PALETTE_BLUE_SHIFT
+.DEFINE VDP_PALETTE_GREEN_SHIFT                         2       ; ---- GG--
+.DEFINE VDP_PALETTE_GREEN_MASK                          3 << VDP_PALETTE_GREEN_SHIFT
+.DEFINE VDP_PALETTE_RED_SHIFT                           0       ; ---- --RR
+.DEFINE VDP_PALETTE_RED_MASK                            3 << VDP_PALETTE_RED_SHIFT
 
 .DEFINE VDP_TILE_SIZE                                   32
 .DEFINE VDP_TILE_BITPLANES                              4
@@ -142,7 +148,7 @@
     gVDPManager INSTANCEOF VDPManager
 .ENDS 
 
-.SECTION "VDP Manager Routines" FREE
+.SECTION "VDP Manager Init" FREE
 ;==============================================================================
 ; VDPManager_Init
 ; Initializes the global VDPManager.
@@ -160,7 +166,7 @@ VDPManager_Init:
     ld      a, (hl)
     inc     hl
     push    hl
-    call    VDPManager_WriteRegister
+    call    VDPManager_WriteRegisterImmediate
     pop     hl
     djnz    -
 
@@ -181,6 +187,16 @@ VDPManager_Init:
         djnz    -
     dec     c
     jr      nz, -
+
+    ; Clear the palette.
+    ld      b, VDP_PALETTE_NUM_PALETTES * VDP_PALETTE_ENTRIES_PER_PALETTE
+    ld      c, 0    ; Color 0
+-:
+    ld      e, b
+    dec     e       ; Entry is 0..31
+    call    VDPManager_SetPaletteEntryImmediate
+
+    djnz -
     ret
 
 ; Some VDP defaults.
@@ -208,16 +224,18 @@ VDPDefaults_Begin:
     ; R10:  Line interrupt is 0
     .db VDP_COMMMAND_MASK_REGISTER10, VDP_REGISTER10_REQUIRED_MASK
 VDPDefaults_End
+.ENDS
 
+.SECTION "VDP Manager Write Register Immediate" FREE
 ;==============================================================================
-; VDPManager_WriteRegister
+; VDPManager_WriteRegisterImmediate
 ; Immediately sets a register value, and maintains a shadow copy of it.
 ; INPUTS:  E:  Register to set
 ;          A:  Value to set
 ; OUTPUTS:  None
 ; Destroys D, HL.
 ;==============================================================================
-VDPManager_WriteRegister:
+VDPManager_WriteRegisterImmediate:
     ; Store to the shadow register first.
     ld      d, 0
     ld      hl, gVDPManager.Registers
@@ -230,5 +248,140 @@ VDPManager_WriteRegister:
     or      VDP_COMMAND_MASK_REGISTER_WRITE     ; Mask in the command
     out     (VDP_CONTROL_PORT), a               ; Commands + register num
     ret
+.ENDS
 
+.SECTION "VDP Manager Set Palette Entry Immediate" FREE
+;==============================================================================
+; VDPManager_SetPaletteEntryImmediate
+; Immediately sets a palette entry, and maintains a shadow copy of it.
+; INPUTS:  E:  Entry to set (0..31)
+;          C:  Color value to set
+; OUTPUTS:  None
+; Destroys A, D, HL.
+;==============================================================================
+VDPManager_SetPaletteEntryImmediate:
+    ; Store to the shadow register first
+    ld      d, 0
+    ld      hl, gVDPManager.Palette
+    add     hl, de
+    ld      (hl), c
+
+    ; Now output to the VDP
+    ld      a, e
+    out     (VDP_CONTROL_PORT), a               ; Set pal entry in low byte
+    ld      a, VDP_COMMAND_MASK_CRAM_WRITE      ; The command
+    out     (VDP_CONTROL_PORT), a               ; Send the command
+
+    ; Emit the color
+    ld      a, c
+    out     (VDP_DATA_PORT), a
+    ret
+.ENDS
+
+.SECTION "VDP Manager Set Palette Entries Immediate" FREE
+;==============================================================================
+; VDPManager_SetPaletteEntriesImmediate
+; Immediately sets a series of palette entries, and updates shadow entries.
+; INPUTS:  C:  Index of first entry
+;          B:  Count of entries to update
+;          HL: Pointer to palette data
+; OUTPUTS:  B is 0
+; Destroys A, BC, DE, HL.
+;==============================================================================
+VDPManager_SetPaletteEntriesImmediate
+    push    hl
+
+    ; Get index to shadow registers.
+    ld      hl, gVDPManager.Palette
+    ld      d, 0
+    ld      e, c
+    add     hl, de  ; HL points to the first shadow register
+
+    pop     de      ; DE points to the palette data
+
+    ; Now output to the VDP
+    ld      a, c
+    out     (VDP_CONTROL_PORT), a               ; Set pal entry in low byte
+    ld      a, VDP_COMMAND_MASK_CRAM_WRITE      ; The command
+    out     (VDP_CONTROL_PORT), a               ; Send the command
+
+    ; Now set the color values.
+-:
+    ld      a, (de)                             ; Get the color
+    ld      (hl), a                             ; Set the shadow register
+    out     (VDP_DATA_PORT), a
+    inc     de
+    inc     hl
+    djnz    -
+    ret
+.ENDS
+
+.SECTION "VDP Manager Upload Tile Data" FREE
+;==============================================================================
+; VDPManager_UploadTileDataToTilePos
+; Uploads the tile data starting at the tile index specified.  Assumes data is
+; all 4bpp (no bitplane skips, etc.)
+; INPUTS:  DE:  Start of tile data
+;          BC:  Size of tile data, in bytes
+;          HL:  Index of tile to begin at (16-bit because it's 0..448)
+; OUTPUTS:  HL points to end of data.  D, B are 0.  C is the Data Port.
+;          Destroys B, C, D, E
+;==============================================================================
+VDPManager_UploadTileDataToTilePos:
+    ; Find offset in VRAM.
+    .REPT 5         ; 2 ^ 5 == 32, which is how many bytes there are in a tile.
+        add hl, hl
+    .ENDR
+    ex      de, hl  ; HL now points to tile data, DE points to VRAM loc
+    jp      VDPManager_UploadDataToVRAMLoc
+
+.ENDS
+
+.SECTION "VDP Manager Upload Data Routines" FREE
+;==============================================================================
+; VDPManager_UploadDataToVRAMLoc
+; Uploads data starting at the VRAM loc specified.
+; INPUTS:  DE:  VRAM loc to write to
+;          BC:  Size of data, in bytes
+;          HL:  Pointer to src data
+; OUTPUTS:  HL points to end of data.  D, B are 0.  C is the Data Port.
+;          Destroys B, C, D, E
+;==============================================================================
+VDPManager_UploadDataToVRAMLoc:
+    ; Set the VRAM pointer.
+    ld      a, e
+    out     (VDP_CONTROL_PORT), a           ; Set low byte of address in first byte
+    ld      a, d
+    or      VDP_COMMAND_MASK_VRAM_WRITE
+    out     (VDP_CONTROL_PORT), a           ; Set high byte of address + command
+
+    ld      d, b
+    ld      e, c
+
+    ; FALL THROUGH
+
+;==============================================================================
+; VDPManager_UploadData_VDPPtrSet
+; General-purpose method to upload up to 64K of data to the VDP (VRAM or CRAM).  
+; It's assumed that the VDP is already prepped for writing.
+; INPUTS:  HL:  Start of data to write
+;          DE:  Size of data size to upload
+; OUTPUTS:  HL points to end of data.  D, B are 0.  C is the Data Port.
+;          Destroys B, C, D, E
+;==============================================================================
+VDPManager_UploadData_VDPPtrSet:
+    ; Ensures we roll over correctly:  
+    ;   If DE == $00FF, we only want one otir.
+    ;   If DE == $0100, we *also* only want one otir.
+    ;   If DE == $0101, we want two otirs (one for 1 byte, one for 256 bytes)
+    ld  b, e                                ; B gets low byte count
+    dec de
+    inc d
+
+    ld  c, VDP_DATA_PORT                    ; Port for OTIR        
+VDPManager_UploadData_VDPPtrSet_WriteLoop:
+    otir
+    dec d
+    jp  nz, VDPManager_UploadData_VDPPtrSet_WriteLoop
+    ret
 .ENDS
