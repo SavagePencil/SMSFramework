@@ -282,22 +282,19 @@ VDPManager_SetPaletteEntryImmediate:
 ;==============================================================================
 ; VDPManager_SetPaletteEntriesImmediate
 ; Immediately sets a series of palette entries, and updates shadow entries.
-; INPUTS:  C:  Index of first entry
-;          B:  Count of entries to update
-;          HL: Pointer to palette data
+; INPUTS:  C:  Index of first palette entry to fill
+;          A:  Count of entries to update
+;          DE: Pointer to palette data
 ; OUTPUTS:  B is 0
 ; Destroys A, BC, DE, HL.
 ;==============================================================================
 VDPManager_SetPaletteEntriesImmediate
-    push    hl
-
     ; Get index to shadow registers.
     ld      hl, gVDPManager.Palette
-    ld      d, 0
-    ld      e, c
-    add     hl, de  ; HL points to the first shadow register
+    ld      b, 0
+    add     hl, bc  ; HL points to the first shadow register
 
-    pop     de      ; DE points to the palette data
+    ld      b, a    ; Prep our counter
 
     ; Now output to the VDP
     ld      a, c
