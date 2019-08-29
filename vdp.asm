@@ -498,37 +498,38 @@ VDPManager_UploadData_VDPPtrSet_WriteLoop:
 ; VDPManager_UploadNameTableEntry
 ; Uploads a single entry to the name table, at the column and row specfied.
 ; INPUTS:  B:   Row
-;          C:   Column
+;          C:   Column (range 0..31)
 ;          DE:  Name Table entry
-; OUTPUTS:  
+; OUTPUTS: HL = VRAM address
+;          Destroys A, C
 ;==============================================================================
 VDPManager_UploadNameTableEntry:
     ; Calculate the VRAM position.
 
+    ; Remember that b << 6 is easier to rotate right twice
+    ; H = 00rr rrrr       ; High byte = Row * 64
+    ; L = rrcc cccc       ; Low byte = low bits from Row * 64 | column
+    ; H |= NameTable|Cmd  ; Add in nametable offset and "write to VRAM" command
+
     ; Start with row.  This should be VDP_NAMETABLE_ROWSIZE_IN_BYTES * row.
     xor     a
-    ld      h, a
-    ld      l, b
-.REPT 6
-    add     hl, hl      ; HL = Start of row
-.ENDR
-    ; Now add the column offset, which is _sizeof_NameTableEntry
-    ld      b, a        ; B = 0
-    ld      a, c
-    add     a, a
-    ld      c, a        ; C = 2 * col
-    add     hl, bc      ; HL = Row + column offset
+    srl     h           ; Low bit of B -> CY
+    rra                 ; A = r000 0000
+    srl     h           ; Low bit of B -> CY
+    rra                 ; A = rr00 0000
+    sla     l           ; C = col * 2 bytes per entry
+    or      l           ; A = rrcc ccc0
+    ld      l, a
+    ld      a, (VDP_NAMETABLE_START_LOC >> 8) | VDP_COMMAND_MASK_VRAM_WRITE
+    or      h
+    ld      h, a        ; H = Nametable + row * 64
 
-    ; Now add the VRAM offset.
-    ld      bc, VDP_NAMETABLE_START_LOC
-    add     hl, bc      ; HL = Final loc in VRAM
 
+    ; We've calculated the offset, so actually write it.
     ; Prep the VRAM for writing.
-    ld      a, l
-    out     (VDP_CONTROL_PORT), a           ; Set low byte of address in first byte
-    ld      a, h
-    or      VDP_COMMAND_MASK_VRAM_WRITE
-    out     (VDP_CONTROL_PORT), a           ; Set high byte of address + command
+    ld      c, VDP_CONTROL_PORT
+    out     (c), l           ; Set low byte of address in first byte
+    out     (c), h           ; Set high byte of address + command
 
     ; Now write the data.
     ld      c, VDP_DATA_PORT

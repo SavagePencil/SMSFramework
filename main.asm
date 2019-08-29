@@ -53,16 +53,37 @@ TileLoader:
     call    VDPManager_UploadTileDataToTilePos
 
 ; Write a character.
+WriteMessage:
     ld      de, (Message)
-    ld      b, 8   ; Row
-    ld      c, 3   ; Col
+    ld      h, 0    ; Row
+    ld      l, 0    ; Col
+    call    VDPManager_UploadNameTableEntry
+
+    ld      de, (Message)
+    ld      h, 0    ; Row
+    ld      l, 31   ; Col
+    call    VDPManager_UploadNameTableEntry
+
+    ld      de, (Message)
+    ld      h, 23   ; Row
+    ld      l, 0    ; Col
+    call    VDPManager_UploadNameTableEntry
+
+    ld      de, (Message)
+    ld      h, 23   ; Row
+    ld      l, 31   ; Col
+    call    VDPManager_UploadNameTableEntry
+
+    ld      de, (Message)
+    ld      h, 27   ; Row
+    ld      l, 31   ; Col
     call    VDPManager_UploadNameTableEntry
 
     ret
 
 .DSTRUCT Message INSTANCEOF NameTableEntry VALUES
-    TileIndex:  .db 'W'
-    Flags:      .db 0
+    TileIndex:  .db 'J'
+    Flags:      .db VDP_NAMETABLE_ENTRY_VFLIP | VDP_NAMETABLE_ENTRY_HFLIP
 .ENDST
 
 PaletteBegin:
