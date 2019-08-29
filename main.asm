@@ -54,8 +54,8 @@ TileLoader:
 
 ; Write a character.
     ld      de, (Message)
-    ld      b, 23    ; Row
-    ld      c, 31   ; Col
+    ld      b, 8   ; Row
+    ld      c, 3   ; Col
     call    VDPManager_UploadNameTableEntry
 
     ret
