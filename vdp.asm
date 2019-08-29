@@ -26,7 +26,7 @@
 
 .DEFINE VDP_PATTERN_TABLE_START                         $0000  ; Constant
 .DEFINE VDP_PATTERN_TABLE_SIZE                          $3800  ; Constant
-.DEFINE VDP_NAMETABLE_SIZE                              $0700   ; 1792 bytes
+.DEFINE VDP_NAMETABLE_SIZE                              $0700  ; 1792 bytes
 .DEFINE VDP_SAT_SIZE                                    $0100  ; Includes the gap
 .DEFINE VDP_SAT_UNUSED_GAP_LOC                          VDP_SAT_START_LOC + $0040
 .DEFINE VDP_SAT_UNUSED_GAP_SIZE                         $40    ; 64 bytes
@@ -45,10 +45,30 @@
 .DEFINE VDP_PALETTE_RED_SHIFT                           0       ; ---- --RR
 .DEFINE VDP_PALETTE_RED_MASK                            3 << VDP_PALETTE_RED_SHIFT
 
-.DEFINE VDP_TILE_SIZE                                   32
+.DEFINE VDP_TILE_PIXEL_WIDTH                            8
+.DEFINE VDP_TILE_PIXEL_HEIGHT                           8
+.DEFINE VDP_TILE_SIZE                                   32      ; 8*8 * 4bpp = 32 bytes
 .DEFINE VDP_TILE_BITPLANES                              4
 .DEFINE VDP_TILE_LSB                                    0       ; Bit plane 0
 .DEFINE VDP_TILE_MSB                                    3       ; Bit plane 3
+
+.DEFINE VDP_NAMETABLE_NUMCOLS                           32
+.DEFINE VDP_NAMETABLE_NUMROWS                           28
+.DEFINE VDP_NAMETABLE_NUMVISIBLEROWS                    24
+
+.DEFINE VDP_NAMETABLE_ENTRY_BANKSELECT_SHIFT            0
+.DEFINE VDP_NAMETABLE_ENTRY_USE_HIGH_BANK               1 << VDP_NAMETABLE_ENTRY_BANKSELECT_SHIFT
+.DEFINE VDP_NAMETABLE_ENTRY_HFLIP_SHIFT                 1
+.DEFINE VDP_NAMETABLE_ENTRY_HFLIP                       1 << VDP_NAMETABLE_ENTRY_HFLIP_SHIFT
+.DEFINE VDP_NAMETABLE_ENTRY_VFLIP_SHIFT                 2
+.DEFINE VDP_NAMETABLE_ENTRY_VFLIP                       1 << VDP_NAMETABLE_ENTRY_VFLIP_SHIFT
+.DEFINE VDP_NAMETABLE_ENTRY_PALSELECT_SHIFT             3
+.DEFINE VDP_NAMETABLE_ENTRY_USE_SPRITE_PAL              1 << VDP_NAMETABLE_ENTRY_PALSELECT_SHIFT
+.DEFINE VDP_NAMETABLE_ENTRY_PRIORITYSELECT_SHIFT        4
+.DEFINE VDP_NAMETABLE_ENTRY_BGPRIORITY                  1 << VDP_NAMETABLE_ENTRY_PRIORITYSELECT_SHIFT
+.DEFINE VDP_NAMETABLE_USERBITS_SHIFT                    5
+.DEFINE VDP_NAMETABLE_USERBITS_MASK                     7 << VDP_NAMETABLE_USERBITS_SHIFT
+
 ;==============================================================================
 ; VDP Memory Summary:
 ; * The Palette lives in CRAM.  The VDP has 32 entries for palette entries.  
@@ -135,6 +155,96 @@
     BGOnlyPalette DSB 16        ; First palette can only be used by the BG
     SpritePalette DSB 16        ; Second palette can be used by sprite or BG
 .ENDST
+
+;==============================================================================
+; Tiles are 4bpp arranged in bitplanes, like so:
+; 
+;                    76543210  <- Rightmost pixel
+; Row 0, Bitplane 0  0  
+; Row 0, Bitplane 1  1
+; Row 0, Bitplane 2  0
+; Row 0, Bitplane 3  1
+;        .
+;        .
+;        .
+; Row 7, Bitplane 3
+;
+; The upper left pixel is color %1010. 
+;==============================================================================
+.STRUCT Tile
+    .UNION
+        Data            DSB 32  ; 32 bytes of data, if you know what you're doing.
+    .NEXTU
+        Row0            DSB 4   ; Each row is spread across 4 bitplanes
+        Row1            DSB 4
+        Row2            DSB 4
+        Row3            DSB 4
+        Row4            DSB 4
+        Row5            DSB 4
+        Row6            DSB 4
+        Row7            DSB 4
+        Row8            DSB 4
+    .NEXTU
+        Row0Bitplane0   DB      ; Super granular   
+        Row0Bitplane1   DB
+        Row0Bitplane2   DB
+        Row0Bitplane3   DB
+
+        Row1Bitplane0   DB      
+        Row1Bitplane1   DB
+        Row1Bitplane2   DB
+        Row1Bitplane3   DB
+
+        Row2Bitplane0   DB      
+        Row2Bitplane1   DB
+        Row2Bitplane2   DB
+        Row2Bitplane3   DB
+
+        Row3Bitplane0   DB      
+        Row3Bitplane1   DB
+        Row3Bitplane2   DB
+        Row3Bitplane3   DB
+
+        Row4Bitplane0   DB      
+        Row4Bitplane1   DB
+        Row4Bitplane2   DB
+        Row4Bitplane3   DB
+
+        Row5Bitplane0   DB      
+        Row5Bitplane1   DB
+        Row5Bitplane2   DB
+        Row5Bitplane3   DB
+
+        Row6Bitplane0   DB      
+        Row6Bitplane1   DB
+        Row6Bitplane2   DB
+        Row6Bitplane3   DB
+
+        Row7Bitplane0   DB      
+        Row7Bitplane1   DB
+        Row7Bitplane2   DB
+        Row7Bitplane3   DB
+    .ENDU
+.ENDST
+
+;==============================================================================
+; A nametable entry is 16-bits and comprised of two things:
+;   byte 0: tile index
+;   byte 1: <user flags><priority><palette><vflip><hflip><bank select>
+;
+; You can think of the bank select + tile index as a 9th bit for 0..511.
+;==============================================================================
+.STRUCT NameTableEntry
+    .UNION
+        Data            DW
+    .NEXTU
+        TileIndex       DB
+        Flags           DB
+    .ENDU
+.ENDST
+
+.DEFINE VDP_NAMETABLE_ROWSIZE_IN_BYTES                  VDP_NAMETABLE_NUMCOLS * _sizeof_NameTableEntry
+
 
 .STRUCT VDPManager
     ; Maintain a shadow copy of each of the VDP registers
@@ -380,5 +490,49 @@ VDPManager_UploadData_VDPPtrSet_WriteLoop:
     otir
     dec d
     jp  nz, VDPManager_UploadData_VDPPtrSet_WriteLoop
+    ret
+.ENDS
+
+.SECTION "VDP Manager Upload Name Table Entry" FREE
+;==============================================================================
+; VDPManager_UploadNameTableEntry
+; Uploads a single entry to the name table, at the column and row specfied.
+; INPUTS:  B:   Row
+;          C:   Column
+;          DE:  Name Table entry
+; OUTPUTS:  
+;==============================================================================
+VDPManager_UploadNameTableEntry:
+    ; Calculate the VRAM position.
+
+    ; Start with row.  This should be VDP_NAMETABLE_ROWSIZE_IN_BYTES * row.
+    xor     a
+    ld      h, a
+    ld      l, b
+.REPT 6
+    add     hl, hl      ; HL = Start of row
+.ENDR
+    ; Now add the column offset, which is _sizeof_NameTableEntry
+    ld      b, a        ; B = 0
+    ld      a, c
+    add     a, a
+    ld      c, a        ; C = 2 * col
+    add     hl, bc      ; HL = Row + column offset
+
+    ; Now add the VRAM offset.
+    ld      bc, VDP_NAMETABLE_START_LOC
+    add     hl, bc      ; HL = Final loc in VRAM
+
+    ; Prep the VRAM for writing.
+    ld      a, l
+    out     (VDP_CONTROL_PORT), a           ; Set low byte of address in first byte
+    ld      a, h
+    or      VDP_COMMAND_MASK_VRAM_WRITE
+    out     (VDP_CONTROL_PORT), a           ; Set high byte of address + command
+
+    ; Now write the data.
+    ld      c, VDP_DATA_PORT
+    out     (c), e
+    out     (c), d
     ret
 .ENDS

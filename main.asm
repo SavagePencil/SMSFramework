@@ -52,7 +52,18 @@ TileLoader:
     ld      hl, $0000                       ; Dest tile index
     call    VDPManager_UploadTileDataToTilePos
 
+; Write a character.
+    ld      de, (Message)
+    ld      b, 23    ; Row
+    ld      c, 31   ; Col
+    call    VDPManager_UploadNameTableEntry
+
     ret
+
+.DSTRUCT Message INSTANCEOF NameTableEntry VALUES
+    TileIndex:  .db 'W'
+    Flags:      .db 0
+.ENDST
 
 PaletteBegin:
 ; BG Palette Entry 0 == color 0 (black)
