@@ -257,16 +257,15 @@
     ld  de, ( VDP_COMMAND << 8 ) | ( VDP_NAMETABLE_START_LOC + ( ROW * VDP_NAMETABLE_ROWSIZE_IN_BYTES ) + ( COL * _sizeof_NameTableEntry ) )
 .ENDM
 
-
 ;==============================================================================
 ; The sprite attribute table
 ;==============================================================================
 .STRUCT SAT_YPosEntry
-    YValue:             DB
+    YPos:               DB
 .ENDST
 
 .STRUCT SAT_XPosTileEntry
-    XValue:             DB
+    XPos:               DB
     TileIndex:          DB
 .ENDST
 
@@ -620,4 +619,56 @@ VDPManager_UploadNameTableEntries:
     ld      d, a        ; Row = Nametable + row * 64
 
     jp      VDPManager_UploadDataToVRAMLoc
+.ENDS
+
+.SECTION "VDP Manager Upload Sprite Data Routines" FREE
+;==============================================================================
+; VDPManager_UploadSpriteData
+; Uploads the Y values and X/Tile Index values to the SAT.  Trusts caller to
+; have entered the appropriate sentinel value to terminate Y values.
+; INPUTS:  HL:  Pointer to Y table for sprites (SAT_YTable)
+;          DE:  Pointer to X/Tile Index table for sprites (SAT_XTileTable)
+;          B:   #/sprites
+; OUTPUTS: HL points to end of X/Tile Index table
+;          DE points to the end of the Y Pos table.
+;          B = 0, C = VDP_DATA_PORT, A = High byte of VRAM + write command
+;==============================================================================
+VDPManager_UploadSpriteData:
+    ; Both tables will use the same register for the out port.
+    ld      c, VDP_DATA_PORT
+
+    ; Set the VRAM address for the Y table first.
+    ; Low byte first
+    ld      a, VDP_SAT_START_LOC & $FF    ; Slam to 8-bit :(
+    out     (VDP_CONTROL_PORT), a
+    ; High byte + command
+    ld      a, (VDP_SAT_START_LOC >> 8) | VDP_COMMAND_MASK_VRAM_WRITE
+    out     (VDP_CONTROL_PORT), a
+
+    ; Preserve our count; we'll need it for the second table.
+    ld      a, b
+
+    ; Upload that data!
+    otir
+
+    ; Now the X pos/Tile Index table.
+    ; A has been holding our count, double it since this table is twice as big.
+    add     a, a
+    ld      b, a
+
+    ; Set the VRAM address
+    ; Low byte first
+    ld      a, (VDP_SAT_START_LOC & $FF) + VDP_SAT_XTABLE_OFFSET    ; Slam to 8-bit
+    out     (VDP_CONTROL_PORT), a
+    ; High byte + command
+    ld      a, (VDP_SAT_START_LOC >> 8) | VDP_COMMAND_MASK_VRAM_WRITE
+    out     (VDP_CONTROL_PORT), a
+    
+    ; Put the other table into HL
+    ex      de, hl
+
+    ; Upload that data!
+    otir
+
+    ret
 .ENDS

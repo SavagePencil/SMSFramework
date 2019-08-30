@@ -94,11 +94,32 @@ WriteStringPreCalcPos:
     ld      bc, MessageWorldEnd - MessageWorldBegin
     call    VDPManager_UploadDataToVRAMLoc
 
+; Upload sprites
+UploadSprites:
+    ld      hl, MySpriteTable.YPosEntries
+    ld      de, MySpriteTable.XPosTileEntries
+    ld      b, 2
+    call    VDPManager_UploadSpriteData
+
     ret
+
+.STRUCT SpriteTable
+    YPosEntries INSTANCEOF SAT_YPosEntry 2
+    XPosTileEntries INSTANCEOF SAT_XPosTileEntry 2
+.ENDST
+
+.DSTRUCT MySpriteTable INSTANCEOF SpriteTable VALUES
+
+    XPosTileEntries.1.XPos:         .db $04
+    YPosEntries.1.YPos:             .db $04
+    XPosTileEntries.1.TileIndex:    .db 'J'
+
+    YPosEntries.2.YPos:             .db VDP_SAT_STOP_SPRITES_YVALUE ; Sentinel.
+.ENDST
 
 .DSTRUCT CornerChar INSTANCEOF NameTableEntry VALUES
     TileIndex:  .db 'J'
-    Flags:      .db VDP_NAMETABLE_ENTRY_VFLIP | VDP_NAMETABLE_ENTRY_HFLIP
+    Flags:      .db VDP_NAMETABLE_ENTRY_VFLIP | VDP_NAMETABLE_ENTRY_HFLIP | VDP_NAMETABLE_ENTRY_BGPRIORITY
 .ENDST
 
 MessageHelloBegin:  
