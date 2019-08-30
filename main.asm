@@ -53,44 +53,72 @@ TileLoader:
     call    VDPManager_UploadTileDataToTilePos
 
 ; Write a character.
-WriteMessage:
-    ld      de, (Message)
-    ld      h, 0    ; Row
-    ld      l, 0    ; Col
+WriteCornerChars:
+    ld      hl, (CornerChar)
+    ld      d, 0    ; Row
+    ld      e, 0    ; Col
     call    VDPManager_UploadNameTableEntry
 
-    ld      de, (Message)
-    ld      h, 0    ; Row
-    ld      l, 31   ; Col
+    ld      hl, (CornerChar)
+    ld      d, 0    ; Row
+    ld      e, 31   ; Col
     call    VDPManager_UploadNameTableEntry
 
-    ld      de, (Message)
-    ld      h, 23   ; Row
-    ld      l, 0    ; Col
+    ld      hl, (CornerChar)
+    ld      d, 23   ; Row
+    ld      e, 0    ; Col
     call    VDPManager_UploadNameTableEntry
 
-    ld      de, (Message)
-    ld      h, 23   ; Row
-    ld      l, 31   ; Col
+    ld      hl, (CornerChar)
+    ld      d, 23   ; Row
+    ld      e, 31   ; Col
     call    VDPManager_UploadNameTableEntry
 
-    ld      de, (Message)
-    ld      h, 27   ; Row
-    ld      l, 31   ; Col
+    ld      hl, (CornerChar)
+    ld      d, 27   ; Row
+    ld      e, 31   ; Col
     call    VDPManager_UploadNameTableEntry
+
+; Render a string based on a dynamic position (calc at runtime)
+WriteStringDynamicPos:
+    ld      hl, MessageHelloBegin
+    ld      d, 2    ; Row
+    ld      e, 1    ; Col
+    ld      bc, MessageHelloEnd - MessageHelloBegin
+    call    VDPManager_UploadNameTableEntries
+
+; Render a string based on a pre-calculated position
+WriteStringPreCalcPos:
+    ld      hl, MessageWorldBegin
+    VDP_NAMETABLE_CALC_VRAM_ADDRESS_DE 3, 1, VDP_COMMAND_MASK_VRAM_WRITE
+    ld      bc, MessageWorldEnd - MessageWorldBegin
+    call    VDPManager_UploadDataToVRAMLoc
 
     ret
 
-.DSTRUCT Message INSTANCEOF NameTableEntry VALUES
+.DSTRUCT CornerChar INSTANCEOF NameTableEntry VALUES
     TileIndex:  .db 'J'
     Flags:      .db VDP_NAMETABLE_ENTRY_VFLIP | VDP_NAMETABLE_ENTRY_HFLIP
 .ENDST
+
+MessageHelloBegin:  
+.DW 'H', 'E', 'L', 'L', 'O'
+MessageHelloEnd:
+
+MessageWorldBegin:
+.DW 'W', 'O', 'R', 'L', 'D'
+MessageWorldEnd
 
 PaletteBegin:
 ; BG Palette Entry 0 == color 0 (black)
 .db VDP_PALETTE_BG_PALETTE_INDEX + 0, $00
 ; BG Palette Entry 1 == color $3F (white)
 .db VDP_PALETTE_BG_PALETTE_INDEX + 1, (3 << VDP_PALETTE_RED_SHIFT) | (3 << VDP_PALETTE_GREEN_SHIFT) | (3 << VDP_PALETTE_BLUE_SHIFT)
+
+; Sprite Palette Entry 0 == color $03 (red).  REMEMBER:  Sprites treat entry 0 as clear :)
+.db VDP_PALETTE_SPRITE_PALETTE_INDEX + 0, (3 << VDP_PALETTE_RED_SHIFT)
+; Sprite Palette Entry 1 == color $3C (cyan)
+.db VDP_PALETTE_SPRITE_PALETTE_INDEX + 1, (3 << VDP_PALETTE_GREEN_SHIFT) | (3 << VDP_PALETTE_BLUE_SHIFT)
 PaletteEnd:
 
 TileDataBegin:

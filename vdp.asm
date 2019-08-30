@@ -69,6 +69,12 @@
 .DEFINE VDP_NAMETABLE_USERBITS_SHIFT                    5
 .DEFINE VDP_NAMETABLE_USERBITS_MASK                     7 << VDP_NAMETABLE_USERBITS_SHIFT
 
+.DEFINE VDP_SAT_MAX_SPRITES                             64
+.DEFINE VDP_SAT_YTABLE_OFFSET                           0   ; Y entries go first
+.DEFINE VDP_SAT_XTABLE_OFFSET                           $80 ; X entries start after a gap
+.DEFINE VDP_SAT_TILETABLE_OFFSET                        $81 ; Tile values follow the X
+.DEFINE VDP_SAT_STOP_SPRITES_YVALUE                     $D0 ; A magic value indicating "no more sprites"
+
 ;==============================================================================
 ; VDP Memory Summary:
 ; * The Palette lives in CRAM.  The VDP has 32 entries for palette entries.  
@@ -245,7 +251,38 @@
 
 .DEFINE VDP_NAMETABLE_ROWSIZE_IN_BYTES                  VDP_NAMETABLE_NUMCOLS * _sizeof_NameTableEntry
 
+; If you already know the row and column you intend to write to, we can
+; embed the destination VRAM address.
+.MACRO VDP_NAMETABLE_CALC_VRAM_ADDRESS_DE ARGS ROW, COL, VDP_COMMAND
+    ld  de, ( VDP_COMMAND << 8 ) | ( VDP_NAMETABLE_START_LOC + ( ROW * VDP_NAMETABLE_ROWSIZE_IN_BYTES ) + ( COL * _sizeof_NameTableEntry ) )
+.ENDM
 
+
+;==============================================================================
+; The sprite attribute table
+;==============================================================================
+.STRUCT SAT_YPosEntry
+    YValue:             DB
+.ENDST
+
+.STRUCT SAT_XPosTileEntry
+    XValue:             DB
+    TileIndex:          DB
+.ENDST
+
+.STRUCT SAT_YTable:
+    YPosEntries INSTANCEOF SAT_YPosEntry VDP_SAT_MAX_SPRITES
+.ENDST
+
+.STRUCT SAT_XTileTable:
+    XPosEntries INSTANCEOF SAT_XPosTileEntry VDP_SAT_MAX_SPRITES
+.ENDST
+
+;==============================================================================
+; The VDP Manager maintains a local copy of registers so that code can query
+; current state without having to go to VRAM (or when the values themselves
+; aren't queryable, as in the case of CRAM).
+;==============================================================================
 .STRUCT VDPManager
     ; Maintain a shadow copy of each of the VDP registers
     Registers INSTANCEOF VDPRegisterShadow
@@ -497,10 +534,10 @@ VDPManager_UploadData_VDPPtrSet_WriteLoop:
 ;==============================================================================
 ; VDPManager_UploadNameTableEntry
 ; Uploads a single entry to the name table, at the column and row specfied.
-; INPUTS:  B:   Row
-;          C:   Column (range 0..31)
-;          DE:  Name Table entry
-; OUTPUTS: HL = VRAM address
+; INPUTS:  D:   Row
+;          E:   Column (range 0..31)
+;          HL:  Name Table entry
+; OUTPUTS: DE = VRAM address + command
 ;          Destroys A, C
 ;==============================================================================
 VDPManager_UploadNameTableEntry:
@@ -513,27 +550,74 @@ VDPManager_UploadNameTableEntry:
 
     ; Start with row.  This should be VDP_NAMETABLE_ROWSIZE_IN_BYTES * row.
     xor     a
-    srl     h           ; Low bit of B -> CY
+    srl     d           ; Low bit of Row -> CY
     rra                 ; A = r000 0000
-    srl     h           ; Low bit of B -> CY
+    srl     d           ; Low bit of Row -> CY
     rra                 ; A = rr00 0000
-    sla     l           ; C = col * 2 bytes per entry
-    or      l           ; A = rrcc ccc0
-    ld      l, a
+    sla     e           ; Col = col * 2 bytes per entry
+    or      e           ; A = rrcc ccc0
+    ld      e, a
     ld      a, (VDP_NAMETABLE_START_LOC >> 8) | VDP_COMMAND_MASK_VRAM_WRITE
-    or      h
-    ld      h, a        ; H = Nametable + row * 64
+    or      d
+    ld      d, a        ; Row = Nametable + Row * 64
 
+    ; FALL THROUGH
+
+;==============================================================================
+; VDPManager_UploadNameTableEntry_AddressCalculated
+; Uploads a single entry to the name table, at the VRAM address specified.
+; INPUTS:  DE:  VRAM address + command
+;          HL:  Name Table entry
+; OUTPUTS: DE = VRAM address + command
+;          Destroys A, C
+;==============================================================================
+VDPManager_UploadNameTableEntry_AddressCalculated:
 
     ; We've calculated the offset, so actually write it.
     ; Prep the VRAM for writing.
     ld      c, VDP_CONTROL_PORT
-    out     (c), l           ; Set low byte of address in first byte
-    out     (c), h           ; Set high byte of address + command
+    out     (c), e           ; Set low byte of address in first byte
+    out     (c), d           ; Set high byte of address + command
 
     ; Now write the data.
     ld      c, VDP_DATA_PORT
-    out     (c), e
-    out     (c), d
+    out     (c), l
+    out     (c), h
     ret
+.ENDS
+
+.SECTION "VDP Manager Upload Name Table Entries" FREE
+;==============================================================================
+; VDPManager_UploadNameTableEntries
+; Uploads a sequence of entries to the name table, starting at the column 
+; and row specfied.
+; INPUTS:  D:   Row
+;          E:   Column (range 0..31)
+;          HL:  Pointer to name table entries
+;          BC:  Total size in bytes (remember 1 entry = 2 bytes!)
+; OUTPUTS: HL points to end of data.  D, B are 0.  C is the Data Port.
+;          Destroys B, C, D, E
+;==============================================================================
+VDPManager_UploadNameTableEntries:
+    ; Calculate the VRAM position.
+
+    ; Remember that b << 6 is easier to rotate right twice
+    ; D = 00rr rrrr       ; High byte = Row * 64
+    ; E = rrcc cccc       ; Low byte = low bits from Row * 64 | column
+    ; D |= NameTable|Cmd  ; Add in nametable offset and "write to VRAM" command
+
+    ; Start with row.  This should be VDP_NAMETABLE_ROWSIZE_IN_BYTES * row.
+    xor     a
+    srl     d           ; Low bit of Row -> CY
+    rra                 ; A = r000 0000
+    srl     d           ; Low bit of Row -> CY
+    rra                 ; A = rr00 0000
+    sla     e           ; Col = col * 2 bytes per entry
+    or      e           ; A = rrcc ccc0
+    ld      e, a
+    ld      a, (VDP_NAMETABLE_START_LOC >> 8) | VDP_COMMAND_MASK_VRAM_WRITE
+    or      d
+    ld      d, a        ; Row = Nametable + row * 64
+
+    jp      VDPManager_UploadDataToVRAMLoc
 .ENDS
