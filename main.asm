@@ -101,6 +101,11 @@ UploadSprites:
     ld      b, 2
     call    VDPManager_UploadSpriteData
 
+; Turn on the display, by OR'ing to the current value.
+    ld      a, (gVDPManager.Registers.VideoModeControl2)
+    or      VDP_REGISTER1_ENABLE_DISPLAY
+    ld      e, VDP_COMMMAND_MASK_REGISTER1
+    call    VDPManager_WriteRegisterImmediate
     ret
 
 .STRUCT SpriteTable
@@ -110,9 +115,9 @@ UploadSprites:
 
 .DSTRUCT MySpriteTable INSTANCEOF SpriteTable VALUES
 
-    XPosTileEntries.1.XPos:         .db $04
-    YPosEntries.1.YPos:             .db $04
-    XPosTileEntries.1.TileIndex:    .db 'J'
+    XPosTileEntries.1.XPos:         .db $7C
+    YPosEntries.1.YPos:             .db $5F
+    XPosTileEntries.1.TileIndex:    .db $5F
 
     YPosEntries.2.YPos:             .db VDP_SAT_STOP_SPRITES_YVALUE ; Sentinel.
 .ENDST
@@ -333,6 +338,8 @@ TileDataBegin:
 .db $18,$00,$00,$00,$18,$00,$00,$00,$30,$00,$00,$00,$00,$00,$00,$00
 .db $31,$00,$00,$00,$6B,$00,$00,$00,$46,$00,$00,$00,$00,$00,$00,$00
 .db $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.db $FF,$00,$00,$00,$FF,$00,$00,$00,$FF,$00,$00,$00,$FF,$00,$00,$00
+.db $FF,$00,$00,$00,$FF,$00,$00,$00,$FF,$00,$00,$00,$FF,$00,$00,$00
 TileDataEnd:
 
 .ENDS

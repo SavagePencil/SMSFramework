@@ -144,17 +144,71 @@
 
 ; Maintains a copy of the VDP registers
 .STRUCT VDPRegisterShadow
-    Register0  DB
-    Register1  DB
-    Register2  DB
-    Register3  DB
-    Register4  DB
-    Register5  DB
-    Register6  DB
-    Register7  DB
-    Register8  DB
-    Register9  DB
-    Register10 DB
+    .UNION
+        Register0           DB
+    .NEXTU
+        VideoModeControl1   DB      ; Interrupts, scroll behavior, etc.
+    .ENDU
+
+    .UNION
+        Register1  DB
+    .NEXTU
+        VideoModeControl2   DB      ; Sprites, display state, etc.
+    .ENDU
+
+    .UNION
+        Register2           DB
+    .NEXTU
+        NameTableAddress    DB      ; Where the name table (tilemap) lives
+    .ENDU
+
+    .UNION
+        Register3  DB
+    .NEXTU
+        ColorTableAddress   DB      ; Where colors live (no effect)
+    .ENDU
+
+    .UNION
+        Register4  DB
+    .NEXTU
+        BGPatternAddress    DB      ; Where BG patterns live (no effect)
+    .ENDU
+
+    .UNION
+        Register5  DB
+    .NEXTU
+        SpriteTableAddress  DB      ; Where data on active sprites lives
+    .ENDU
+
+    .UNION
+        Register6  DB
+    .NEXTU
+        SpriteTileAddress   DB      ; Where sprite tiles originate
+    .ENDU
+
+    .UNION
+        Register7           DB
+    .NEXTU
+        OverscanColor       DB      ; Which sprite pal entry is the overscan
+    .ENDU
+
+    .UNION
+        Register8           DB
+    .NEXTU
+        ScrollX             DB      ; Horizontal scroll
+    .ENDU
+
+    .UNION
+        Register9           DB
+    .NEXTU
+        ScrollY             DB      ; Vertical scroll
+    .ENDU
+    
+    .UNION
+        Register10          DB
+    .NEXTU
+        HBlankCounter       DB      ; Line counter for HBlank timing
+    .ENDU
 .ENDST
 
 .STRUCT VDPPalette
