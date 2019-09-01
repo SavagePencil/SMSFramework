@@ -1,8 +1,10 @@
-.include "boot.asm"
-.include "interrupts.asm"
-.include "FSM.asm"
-.include "vdp.asm"
-.include "vdpmanager.asm"
+.include "Application/bankdetails.asm"
+.include "Application/interrupts.asm"
+.include "Utils/boot.asm"
+.include "Utils/FSM.asm"
+.include "Utils/vdp.asm"
+.include "Managers/modemanager.asm"
+.include "Managers/vdpmanager.asm"
 
 .SECTION "Application Main Loop" FREE
 ; This routine is called by the framework when we're ready to enter
