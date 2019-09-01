@@ -3,6 +3,18 @@
 .include "FSM.asm"
 .include "vdp.asm"
 
+.SECTION "Application Main Loop" FREE
+; This routine is called by the framework when we're ready to enter
+; the main loop.
+Application_MainLoop_InitialEntry:
+    ei                                  ; Turn on interrupts
+
+Application_MainLoop:    
+    call ModeManager_OnUpdate           ; Update for current mode
+    call ModeManager_OnRenderPrep       ; Prepare things for rendering
+    halt                                ; Wait for VBlank
+    jp   Application_MainLoop           
+.ENDS
 
 .SECTION "Application Bootstrap" FREE
 ; This routine sets up an initial state as part of the bootstrapping.
@@ -103,7 +115,7 @@ UploadSprites:
 
 ; Turn on the display, by OR'ing to the current value.
     ld      a, (gVDPManager.Registers.VideoModeControl2)
-    or      VDP_REGISTER1_ENABLE_DISPLAY
+    or      VDP_REGISTER1_ENABLE_DISPLAY | VDP_REGISTER1_ENABLE_VBLANK
     ld      e, VDP_COMMMAND_MASK_REGISTER1
     call    VDPManager_WriteRegisterImmediate
     ret
@@ -346,12 +358,12 @@ TileDataEnd:
 
 .SECTION "Mode Manager Test" FREE
 .DSTRUCT Mode1 INSTANCEOF ApplicationMode VALUES
-    VideoInterruptJumpTarget:   .dw ModeDefaultHandler
+    VideoInterruptJumpTarget:   .dw Mode1VideoInterruptHandler
     OnNMI:                      .dw ModeDefaultHandler
     OnActive:                   .dw Mode1ActiveHandler
     OnInactive:                 .dw Mode1InactiveHandler
     OnUpdate:                   .dw Mode1UpdateHandler
-    OnRender:                   .dw ModeDefaultHandler
+    OnRenderPrep:               .dw ModeDefaultHandler
     OnEvent:                    .dw ModeDefaultHandler  
 .ENDST
 .DSTRUCT Mode2 INSTANCEOF ApplicationMode VALUES
@@ -360,7 +372,7 @@ TileDataEnd:
     OnActive:                   .dw Mode2ActiveHandler
     OnInactive:                 .dw Mode2InactiveHandler
     OnUpdate:                   .dw ModeDefaultHandler
-    OnRender:                   .dw ModeDefaultHandler
+    OnRenderPrep:               .dw ModeDefaultHandler
     OnEvent:                    .dw ModeDefaultHandler  
 .ENDST
 
@@ -438,5 +450,25 @@ State4_OnEnter:
     OnEnter:    .dw State_NULL 
     OnExit:     .dw State_NULL
 .ENDST
+
+Mode1VideoInterruptHandler:
+    ex      af, af'
+        in  a, (VDP_STATUS_PORT)    ; Satisfy the interrupt
+
+        ; A little hack to slam the first sprite's X position
+        ; Set the VRAM address
+        ; Low byte first
+        ld      a, (VDP_SAT_START_LOC & $FF) + VDP_SAT_XTABLE_OFFSET    ; Slam to 8-bit
+        out     (VDP_CONTROL_PORT), a
+        ; High byte + command
+        ld      a, (VDP_SAT_START_LOC >> 8) | VDP_COMMAND_MASK_VRAM_WRITE
+        out     (VDP_CONTROL_PORT), a
+
+        inc     e
+        ld      a, e
+        out     (VDP_DATA_PORT), a
+
+    ex      af, af'
+    ret
 
 .ENDS

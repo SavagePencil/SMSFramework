@@ -2,9 +2,9 @@
 .org $0038
 .section "SMSFramework Video Interrupts" FORCE
 SMSFramework_VideoInterruptHandler:
-    di
-
-    ; TODO:  Pass this on to the mode handler
+    exx
+        call    CallHL
+    exx
     ei
     reti
 .ends
@@ -13,12 +13,17 @@ SMSFramework_VideoInterruptHandler:
 .org $0066
 .section "SMSFramework Non-Maskable Interrupts" FORCE
 SMSFramework_NMIHandler:
-    ; Are we initialized, or did this come in while we were booting?
-    ld a, (SMSFrameWork_Initialized)
-    and a
-    ret z   ; Ignore it if we're not yet initialized.
+    push    af
+        ; Are we initialized, or did this come in while we were booting?
+        ld a, (SMSFrameWork_Initialized)
+        and a
+        jr  z, _SMSFramework_NMIHandler_Restore ; Ignore it if we're not yet initialized.
 
-    ; TODO:  Pass this on to the mode handler
-
+        ; Pass this on to the mode handler
+        push    ix
+            call ModeManager_OnNMI
+        pop     ix
+_SMSFramework_NMIHandler_Restore:
+    pop     af
     retn
 .ends

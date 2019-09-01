@@ -24,14 +24,19 @@
 .DEFINE VDP_COMMMAND_MASK_REGISTER9                     9
 .DEFINE VDP_COMMMAND_MASK_REGISTER10                    $A
 
-.DEFINE VDP_PATTERN_TABLE_START                         $0000  ; Constant
-.DEFINE VDP_PATTERN_TABLE_SIZE                          $3800  ; Constant
-.DEFINE VDP_NAMETABLE_SIZE                              $0700  ; 1792 bytes
-.DEFINE VDP_SAT_SIZE                                    $0100  ; Includes the gap
+.DEFINE VDP_STATUS_PORT                                 $BF
+.DEFINE VDP_STATUS_FRAME_INTERRUPT_MASK                 $80     ; Did a frame interrupt occur?
+.DEFINE VDP_STATUS_SPRITE_OVERFLOW_MASK                 $40     ; > 8 sprites on a line?
+.DEFINE VDP_STATUS_SPRITE_COLLISION_MASK                $20     ; Did any sprites' non-opaque pixels overlap?
+
+.DEFINE VDP_PATTERN_TABLE_START                         $0000   ; Constant
+.DEFINE VDP_PATTERN_TABLE_SIZE                          $3800   ; Constant
+.DEFINE VDP_NAMETABLE_SIZE                              $0700   ; 1792 bytes
+.DEFINE VDP_SAT_SIZE                                    $0100   ; Includes the gap
 .DEFINE VDP_SAT_UNUSED_GAP_LOC                          VDP_SAT_START_LOC + $0040
-.DEFINE VDP_SAT_UNUSED_GAP_SIZE                         $40    ; 64 bytes
+.DEFINE VDP_SAT_UNUSED_GAP_SIZE                         $40     ; 64 bytes
 .DEFINE VDP_SAT_SECOND_HALF_LOC                         VDP_SAT_START_LOC + $0080
-.DEFINE VDP_SAT_SECOND_HALF_SIZE                        $80    ; 128 bytes
+.DEFINE VDP_SAT_SECOND_HALF_SIZE                        $80     ; 128 bytes
 
 .DEFINE VDP_PALETTE_NUM_PALETTES                        2       ; BG & Sprite
 .DEFINE VDP_PALETTE_ENTRIES_PER_PALETTE                 16

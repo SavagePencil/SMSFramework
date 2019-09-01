@@ -1,15 +1,13 @@
 .STRUCT ApplicationMode
     ; The video interrupt handler is special, for optimization purposes:
-    ; 1. It is ALWAYS the first entry in the structure so that we don't have to calculate
-    ;    any math offsets to find it.
-    ; 2. It is a JUMP TARGET rather than a subroutine.  You'll have to provide your own RET.
-    ; 3. We need the tightest loops for handling HBLANKs.
-    VideoInterruptJumpTarget    DW
+    ; 1. It is a JUMP TARGET rather than a subroutine.  You'll have to provide your own RET.
+    ; 2. We need the tightest loops for handling HBLANKs.
+    VideoInterruptJumpTarget    DW      ; Called when a video interrupt (V/HBlank) occurs.
     OnNMI                       DW      ; Called when a non-maskable interrupt (NMI) comes in.
     OnActive                    DW      ; Called when this mode is made active (pushed, old one above popped, etc.)
     OnInactive                  DW      ; Called when this mode goes inactive (popped, new mode pushed on, etc.)
     OnUpdate                    DW      ; Called when the application wants to update.
-    OnRender                    DW      ; Called when the application is about to render.
+    OnRenderPrep                DW      ; Called when the application is prepping things for render.
     OnEvent                     DW      ; Called when a generic event occurs.
 .ENDST
 
@@ -67,8 +65,16 @@ ModeManager_Init:
     inc hl
     djnz -
 
-    ; Now call the OnActiveStateChanged for this mode.
+    ; Get the mode into IX
     ld      ix, (gModeManager.CurrMode)
+
+    ; Prep the video interrupt, which is held in HL' for speedy calling.
+    exx
+        ld  l', (ix + ApplicationMode.VideoInterruptJumpTarget + 0)
+        ld  h', (ix + ApplicationMode.VideoInterruptJumpTarget + 1)
+    exx
+
+    ; Now call the OnActiveStateChanged for this mode.
     ld      l, (ix + ApplicationMode.OnActive)
     ld      h, (ix + ApplicationMode.OnActive + 1)
     ld      a, MODE_PUSHED_ON
@@ -96,6 +102,12 @@ ModeManager_SetActive:
     ; Record the new mode.
     pop     ix
     ld      (gModeManager.CurrMode), ix
+
+    ; Prep the video interrupt, which is held in HL' for speedy calling.
+    exx
+        ld  l', (ix + ApplicationMode.VideoInterruptJumpTarget + 0)
+        ld  h', (ix + ApplicationMode.VideoInterruptJumpTarget + 1)
+    exx
 
     ; Tell the new mode that they are now active.
     ld      l, (ix + ApplicationMode.OnActive + 0)
@@ -141,8 +153,16 @@ ModeManager_PushMode:
     ex      de, hl
     ld      (gModeManager.CurrMode), hl
 
-    ; Now call the OnActiveStateChanged for the new mode.
+    ; Get it into IX
     ld      ix, (gModeManager.CurrMode)
+
+    ; Prep the video interrupt, which is held in HL' for speedy calling.
+    exx
+        ld  l', (ix + ApplicationMode.VideoInterruptJumpTarget + 0)
+        ld  h', (ix + ApplicationMode.VideoInterruptJumpTarget + 1)
+    exx
+
+    ; Now call the OnActiveStateChanged for the new mode.
     ld      l, (ix + ApplicationMode.OnActive + 0)
     ld      h, (ix + ApplicationMode.OnActive + 1)
     ld      a, MODE_PUSHED_ON
@@ -182,8 +202,16 @@ ModeManager_PopMode:
     ld      l, a
     ld      (gModeManager.CurrMode), hl
 
-    ; Now call the OnActiveStateChanged for the new mode.
+    ; Get the new mode into IX
     ld      ix, (gModeManager.CurrMode)
+
+    ; Prep the video interrupt, which is held in HL' for speedy calling.
+    exx
+        ld  l', (ix + ApplicationMode.VideoInterruptJumpTarget + 0)
+        ld  h', (ix + ApplicationMode.VideoInterruptJumpTarget + 1)
+    exx
+
+    ; Now call the OnActiveStateChanged for the new mode.
     ld      l, (ix + ApplicationMode.OnActive + 0)
     ld      h, (ix + ApplicationMode.OnActive + 1)
     ld      a, MODE_OTHER_POPPED_OFF
@@ -217,16 +245,16 @@ ModeManager_OnUpdate:
     jp (hl)
 
 ;==============================================================================
-; ModeManager_OnRender
+; ModeManager_OnRenderPrep
 ; Called when the current mode needs to prep for render
 ; INPUTS:  None
 ; OUTPUTS:  None
 ; Does not preserve any registers.
 ;==============================================================================
-ModeManager_OnRender:
+ModeManager_OnRenderPrep:
     ld  ix, (gModeManager.CurrMode)
-    ld  l, (ix + ApplicationMode.OnRender + 0)
-    ld  h, (ix + ApplicationMode.OnRender + 1)
+    ld  l, (ix + ApplicationMode.OnRenderPrep + 0)
+    ld  h, (ix + ApplicationMode.OnRenderPrep + 1)
     jp (hl)
 
 ;==============================================================================

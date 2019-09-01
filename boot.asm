@@ -54,8 +54,7 @@ SMSFramework_Bootstrap:
     ld (SMSFrameWork_Initialized), a
 
     ; Let the Application take over.
-    ei              ; Start listening for interrupts.
-    halt            ; Wait for one to come in!
+    jp Application_MainLoop_InitialEntry
 .ENDS
 
 .SECTION "Helper Function CallHL" FREE
