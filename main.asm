@@ -2,6 +2,7 @@
 .include "interrupts.asm"
 .include "FSM.asm"
 .include "vdp.asm"
+.include "vdpmanager.asm"
 
 .SECTION "Application Main Loop" FREE
 ; This routine is called by the framework when we're ready to enter
@@ -62,34 +63,34 @@ TileLoader:
     ld      de, TileDataBegin               ; Src data
     ld      bc, TileDataEnd - TileDataBegin ; Length of data
     ld      hl, $0000                       ; Dest tile index
-    call    VDPManager_UploadTileDataToTilePos
+    call    VDP_UploadTileDataToTilePos
 
 ; Write a character.
 WriteCornerChars:
     ld      hl, (CornerChar)
     ld      d, 0    ; Row
     ld      e, 0    ; Col
-    call    VDPManager_UploadNameTableEntry
+    call    VDP_UploadNameTableEntry
 
     ld      hl, (CornerChar)
     ld      d, 0    ; Row
     ld      e, 31   ; Col
-    call    VDPManager_UploadNameTableEntry
+    call    VDP_UploadNameTableEntry
 
     ld      hl, (CornerChar)
     ld      d, 23   ; Row
     ld      e, 0    ; Col
-    call    VDPManager_UploadNameTableEntry
+    call    VDP_UploadNameTableEntry
 
     ld      hl, (CornerChar)
     ld      d, 23   ; Row
     ld      e, 31   ; Col
-    call    VDPManager_UploadNameTableEntry
+    call    VDP_UploadNameTableEntry
 
     ld      hl, (CornerChar)
     ld      d, 27   ; Row
     ld      e, 31   ; Col
-    call    VDPManager_UploadNameTableEntry
+    call    VDP_UploadNameTableEntry
 
 ; Render a string based on a dynamic position (calc at runtime)
 WriteStringDynamicPos:
@@ -97,21 +98,21 @@ WriteStringDynamicPos:
     ld      d, 2    ; Row
     ld      e, 1    ; Col
     ld      bc, MessageHelloEnd - MessageHelloBegin
-    call    VDPManager_UploadNameTableEntries
+    call    VDP_UploadNameTableEntries
 
 ; Render a string based on a pre-calculated position
 WriteStringPreCalcPos:
     ld      hl, MessageWorldBegin
     VDP_NAMETABLE_CALC_VRAM_ADDRESS_DE 3, 1, VDP_COMMAND_MASK_VRAM_WRITE
     ld      bc, MessageWorldEnd - MessageWorldBegin
-    call    VDPManager_UploadDataToVRAMLoc
+    call    VDP_UploadDataToVRAMLoc
 
 ; Upload sprites
 UploadSprites:
     ld      hl, MySpriteTable.YPosEntries
     ld      de, MySpriteTable.XPosTileEntries
     ld      b, 2
-    call    VDPManager_UploadSpriteData
+    call    VDP_UploadSpriteData
 
 ; Turn on the display, by OR'ing to the current value.
     ld      a, (gVDPManager.Registers.VideoModeControl2)
