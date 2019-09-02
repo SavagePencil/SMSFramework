@@ -3,6 +3,7 @@
 .include "Utils/boot.asm"
 .include "Utils/FSM.asm"
 .include "Utils/vdp.asm"
+.include "Utils/spritechain.asm"
 .include "Managers/modemanager.asm"
 .include "Managers/vdpmanager.asm"
 
@@ -18,6 +19,41 @@ Application_MainLoop:
     halt                                ; Wait for VBlank
     jp   Application_MainLoop           
 .ENDS
+
+.STRUCT SpriteChain
+    Header INSTANCEOF SpriteChainHeader
+    YPosEntries INSTANCEOF SAT_YPosEntry 8
+    XPosTileEntries INSTANCEOF SAT_XPosTileEntry 8
+.ENDST
+
+.MACRO PREP_CHAIN ARGS SRC_CHAIN, NEXT_CHAIN, SIZE, X_POS, Y_POS
+    ld      ix, SRC_CHAIN
+    ld      a, SIZE
+    ld      bc, NEXT_CHAIN
+    ld      de, SRC_CHAIN + 8 ;SpriteChain.YPosEntries
+    ld      hl, SRC_CHAIN + 8 + SIZE ;SpriteChain.XPosEntries
+    call    SpriteChain_Init
+
+    ; Fill it out
+    SPRITE_CHAIN_PREP_ENQUEUE_CHAIN_IN_IX SRC_CHAIN + 8, SRC_CHAIN + 8 + SIZE
+
+    ld  b, X_POS
+    ld  a, Y_POS
+
+.REPT SIZE
+    ld  c, $5F      ; Tile
+    SPRITE_CHAIN_ENQUEUE_SPRITE
+
+    ld  c, a
+    ld  a, b
+    add a, $8
+    ld  b, a
+    ld  a, c
+.ENDR
+        
+
+.ENDM
+
 
 .SECTION "Application Bootstrap" FREE
 ; This routine sets up an initial state as part of the bootstrapping.
@@ -111,10 +147,26 @@ WriteStringPreCalcPos:
 
 ; Upload sprites
 UploadSprites:
+    /*
     ld      hl, MySpriteTable.YPosEntries
     ld      de, MySpriteTable.XPosTileEntries
     ld      b, 2
     call    VDP_UploadSpriteData
+    */
+
+    ; The first sprite chain is in ROM.  Create subsequent ones in RAM.
+    PREP_CHAIN SpriteChain2, SpriteChain3, 8, 8, $10
+    PREP_CHAIN SpriteChain3, SpriteChain4, 8, 8, $18
+    PREP_CHAIN SpriteChain4, SpriteChain5, 8, 8, $20
+    PREP_CHAIN SpriteChain5, SpriteChain6, 8, 8, $28
+    PREP_CHAIN SpriteChain6, SpriteChain7, 8, 8, $30
+    PREP_CHAIN SpriteChain7, SpriteChain8, 8, 8, $38
+    PREP_CHAIN SpriteChain8, SpriteChain9, 8, 8, $40
+    PREP_CHAIN SpriteChain9, $0000, 8, 8, $48
+
+RenderSprite:
+    ld      hl, SpriteChain1
+    call    SpriteManager_RenderChainSequence
 
 ; Turn on the display, by OR'ing to the current value.
     ld      a, (gVDPManager.Registers.VideoModeControl2)
@@ -122,6 +174,48 @@ UploadSprites:
     ld      e, VDP_COMMMAND_MASK_REGISTER1
     call    VDPManager_WriteRegisterImmediate
     ret
+
+.DSTRUCT SpriteChain1 INSTANCEOF SpriteChain VALUES
+
+    Header.CurrCount:               .db 8
+    Header.MaxCount:                .db 8
+    Header.NextChain:               .dw SpriteChain2
+    Header.YPosBegin:               .dw SpriteChain1.YPosEntries
+    Header.XPosTileBegin:           .dw SpriteChain1.XPosTileEntries
+
+    XPosTileEntries.1.XPos:         .db $08
+    YPosEntries.1.YPos:             .db $08
+    XPosTileEntries.1.TileIndex:    .db $5F
+
+    XPosTileEntries.2.XPos:         .db $10
+    YPosEntries.2.YPos:             .db $08
+    XPosTileEntries.2.TileIndex:    .db $5F
+
+    XPosTileEntries.3.XPos:         .db $18
+    YPosEntries.3.YPos:             .db $08
+    XPosTileEntries.3.TileIndex:    .db $5F
+
+    XPosTileEntries.4.XPos:         .db $20
+    YPosEntries.4.YPos:             .db $08
+    XPosTileEntries.4.TileIndex:    .db $5F
+
+    XPosTileEntries.5.XPos:         .db $28
+    YPosEntries.5.YPos:             .db $08
+    XPosTileEntries.5.TileIndex:    .db $5F
+
+    XPosTileEntries.6.XPos:         .db $30
+    YPosEntries.6.YPos:             .db $08
+    XPosTileEntries.6.TileIndex:    .db $5F
+
+    XPosTileEntries.7.XPos:         .db $38
+    YPosEntries.7.YPos:             .db $08
+    XPosTileEntries.7.TileIndex:    .db $5F
+
+    XPosTileEntries.8.XPos:         .db $40
+    YPosEntries.8.YPos:             .db $08
+    XPosTileEntries.8.TileIndex:    .db $5F
+
+.ENDST
 
 .STRUCT SpriteTable
     YPosEntries INSTANCEOF SAT_YPosEntry 2
@@ -359,6 +453,19 @@ TileDataEnd:
 
 .ENDS
 
+.RAMSECTION "Sprite Chains" SLOT 3
+SpriteChain2 INSTANCEOF SpriteChain
+SpriteChain3 INSTANCEOF SpriteChain
+SpriteChain4 INSTANCEOF SpriteChain
+SpriteChain5 INSTANCEOF SpriteChain
+SpriteChain6 INSTANCEOF SpriteChain
+SpriteChain7 INSTANCEOF SpriteChain
+SpriteChain8 INSTANCEOF SpriteChain
+SpriteChain9 INSTANCEOF SpriteChain
+
+.ENDS
+
+
 .SECTION "Mode Manager Test" FREE
 .DSTRUCT Mode1 INSTANCEOF ApplicationMode VALUES
     VideoInterruptJumpTarget:   .dw Mode1VideoInterruptHandler
@@ -458,6 +565,7 @@ Mode1VideoInterruptHandler:
     ex      af, af'
         in  a, (VDP_STATUS_PORT)    ; Satisfy the interrupt
 
+/*
         ; A little hack to slam the first sprite's X position
         ; Set the VRAM address
         ; Low byte first
@@ -470,7 +578,7 @@ Mode1VideoInterruptHandler:
         inc     e
         ld      a, e
         out     (VDP_DATA_PORT), a
-
+*/
     ex      af, af'
     ret
 
