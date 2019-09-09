@@ -5,6 +5,7 @@
 .include "Utils/vdp.asm"
 .include "Utils/spritechain.asm"
 .include "Utils/map.asm"
+.include "Utils/input.asm"
 .include "Managers/modemanager.asm"
 .include "Managers/vdpmanager.asm"
 
