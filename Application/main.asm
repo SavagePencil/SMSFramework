@@ -6,8 +6,10 @@
 .include "Utils/spritechain.asm"
 .include "Utils/map.asm"
 .include "Utils/input.asm"
+.include "Utils/controller.asm"
 .include "Managers/modemanager.asm"
 .include "Managers/vdpmanager.asm"
+.include "Managers/inputmanager.asm"
 
 .SECTION "Application Main Loop" FREE
 ; This routine is called by the framework when we're ready to enter
@@ -63,6 +65,9 @@ Application_MainLoop:
 Application_Bootstrap:
     ; Setup the VDP
     call    VDPManager_Init
+
+    ; Setup the input manager
+    call    InputManager_Init
 
     ; Set our initial mode
     ld      de, Mode1
@@ -175,6 +180,18 @@ UploadMap:
     ld      iy, MyMapRequest
     ld      de, $D000
     call    Map_Flat_LoadDataToBlock
+
+SetJoypads:
+    xor     a                               ; 0 == Port 1
+    ld      b, CONTROLLER_TYPE_SMS_JOYPAD
+    ld      hl, Controller_Joypad_Port1_State
+    call    InputManager_SetController
+
+    ld      a, 1                            ; 1 == Port 2
+    ld      b, CONTROLLER_TYPE_SMS_JOYPAD
+    ld      hl, Controller_Joypad_Port2_State
+    call    InputManager_SetController
+
 
 AllDone:
 ; Turn on the display, by OR'ing to the current value.
@@ -628,6 +645,7 @@ Mode1ActiveHandler:
     ret
 
 Mode1UpdateHandler:
+    call    InputManager_OnUpdate
     ret
 
 Mode1InactiveHandler:
