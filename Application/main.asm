@@ -7,6 +7,7 @@
 .include "Utils/map.asm"
 .include "Utils/input.asm"
 .include "Utils/controller.asm"
+.include "Utils/macros.asm"
 .include "Managers/modemanager.asm"
 .include "Managers/vdpmanager.asm"
 .include "Managers/inputmanager.asm"
