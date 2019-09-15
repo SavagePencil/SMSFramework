@@ -1,8 +1,3 @@
-;==============================================================
-; SDSC tag and SMS rom header
-;==============================================================
-.SDSCTAG 1.2,"GAMENAME","SMSFrameWork Game Description","AUTHOR NAME"
-
 .RAMSECTION "Initialization State Variables" SLOT 3
     SMSFrameWork_Initialized DB
 .ENDS

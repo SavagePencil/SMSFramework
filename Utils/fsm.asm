@@ -1,3 +1,6 @@
+.IFNDEF __FSM_ASM__
+.DEFINE __FSM_ASM__
+
 .STRUCT FSM
     CurrentState    DW
 .ENDST
@@ -133,3 +136,5 @@ FSM_OnEvent:
     jp      FSM_ChangeState
 
 .ENDS
+
+.ENDIF  ;__FSM_ASM__

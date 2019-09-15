@@ -1,3 +1,6 @@
+.IFNDEF __INPUT_ASM__
+.DEFINE __INPUT_ASM__
+
 .DEFINE IO_CONTROL_PORT                     $3F     ; Sets the behavior of I/O, defining which pins are inputs and which are outputs.
 
 .DEFINE IO_CONTROL_PORT_P1_TR_DIR_MASK      1 << 0  ; Is the TR pin of player 1 being used as an input, or an output? 1 == as input.
@@ -69,3 +72,5 @@
 .DEFINE IO_P1_LIGHTGUN_SENSOR_MASK         IO_DATA_PORT_2_P1_TH_MASK    ; In IO Data 2
 .DEFINE IO_P2_LIGHTGUN_TRIGGER_MASK        IO_DATA_PORT_2_P2_TL_MASK    ; In IO Data 2
 .DEFINE IO_P2_LIGHTGUN_SENSOR_MASK         IO_DATA_PORT_2_P2_TH_MASK    ; In IO Data 2
+
+.ENDIF  ;__INPUT_ASM__

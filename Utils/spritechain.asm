@@ -1,3 +1,6 @@
+.IFNDEF __SPRITECHAIN_ASM__
+.DEFINE __SPRITECHAIN_ASM__
+
 .STRUCT SpriteChainHeader
     CurrCount       DB      ; #/entries in this chain
     MaxCount        DB      ; Max #/entries allowed
@@ -213,3 +216,5 @@ _SpriteManager_RenderChainYPosDone:
     ret
 
 .ENDS
+
+.ENDIF  ;__SPRITECHAIN_ASM__

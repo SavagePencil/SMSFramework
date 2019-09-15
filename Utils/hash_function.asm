@@ -1,3 +1,6 @@
+.IFNDEF __HASH_FUNCTION_ASM__
+.DEFINE __HASH_FUNCTION_ASM__
+
 .SECTION "Pearson Hash Lookup Table - Ruby" ALIGN 256 FREE
 ; Pearson lookup hash table as used by Ruby module "PearsonHashing"
 ; https://www.rubydoc.info/gems/pearson-hashing/PearsonHashing
@@ -139,3 +142,5 @@ CalcPearsonHash_16bit:
     jp  CalcPearsonHash_8bit
 
 .ENDS
+
+.ENDIF  ;__HASH_FUNCTION_ASM__

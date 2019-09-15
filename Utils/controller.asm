@@ -1,6 +1,7 @@
 .IFNDEF __CONTROLLER_ASM__
 .DEFINE __CONTROLLER_ASM__
 
+.INCLUDE "Utils/FSM.asm"
 .INCLUDE "Utils/Controllers/controller_none.asm"
 .INCLUDE "Utils/Controllers/controller_joypad.asm"
 

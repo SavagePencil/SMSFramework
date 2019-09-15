@@ -1,3 +1,6 @@
+.IFNDEF __VDPREGISTERS_ASM__
+.DEFINE __VDPREGISTERS_ASM__
+
 ;==============================================================================
 ; VDP REGISTER 0
 ;==============================================================================
@@ -157,3 +160,5 @@
 ;==============================================================================
 ; Any flags that are REQUIRED to be set.
 .DEFINE VDP_REGISTER10_REQUIRED_MASK                     $00
+
+.ENDIF  ;__VDPREGISTERS_ASM__

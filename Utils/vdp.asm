@@ -1,3 +1,6 @@
+.IFNDEF __VDP_ASM__
+.DEFINE __VDP_ASM__
+
 .include "Utils/vdpregisters.asm"
 
 .DEFINE VDP_VCOUNTER_PORT                               $7E
@@ -535,3 +538,5 @@ VDP_UploadSpriteData:
 
     ret
 .ENDS
+
+.ENDIF  ;__VDP_ASM__

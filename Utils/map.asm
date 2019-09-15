@@ -1,3 +1,6 @@
+.IFNDEF __MAP_ASM__
+.DEFINE __MAP_ASM__
+
 ; Constants for map meta tile
 .ENUMID 0 EXPORT
     .ENUMID MAP_ENTRY_FLAT          ; No meta tiles, emulates tilemap
@@ -123,3 +126,5 @@ Map_Flat_LoadDataToBlock:
     ret
 
 .ENDS
+
+.ENDIF  ;__MAP_ASM__
