@@ -1,5 +1,4 @@
 .include "Utils/vdpregisters.asm"
-.include "Application/vdpmemorymap.asm"
 
 .DEFINE VDP_VCOUNTER_PORT                               $7E
 .DEFINE VDP_HCOUNTER_PORT                               $7F
