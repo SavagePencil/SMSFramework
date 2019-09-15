@@ -1,3 +1,6 @@
+.INCLUDE "Utils/vdp.asm"
+.INCLUDE "Utils/vdpregisters.asm"
+
 ; Maintains a copy of the VDP registers
 .STRUCT VDPRegisterShadow
     .UNION

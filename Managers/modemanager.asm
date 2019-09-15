@@ -81,14 +81,14 @@ ModeManager_Init:
     jp      (hl)
 
 ;==============================================================================
-; ModeManager_SetActive
+; ModeManager_SetMode
 ; Replaces the current top of stack with the new one.  Deactivates the old
 ; one and activates the new one.
 ; INPUTS:  DE:  New mode.
 ; OUTPUTS:  None
 ; Does not preserve any registers.
 ;==============================================================================
-ModeManager_SetActive:
+ModeManager_SetMode:
     ; Hang onto the new mode.
     push    de
 

@@ -1,3 +1,4 @@
+.INCLUDE "Utils/input.asm"
 .INCLUDE "Utils/controller.asm"
 
 ; Maintain a copy of the I/O status.
