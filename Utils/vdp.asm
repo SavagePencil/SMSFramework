@@ -487,6 +487,62 @@ VDP_UploadNameTableEntries:
     jp      VDP_UploadDataToVRAMLoc
 .ENDS
 
+.SECTION "VDP Upload String to Name Table" FREE
+;==============================================================================
+; VDP_UploadStringToNameTable
+; Uploads a string of bytes to the name table, starting at the column 
+; and row specfied.  Standard Name Table uses two bytes per entry, here you
+; can use one register to specify the attribute to apply for each character.
+; INPUTS:  D:   Row
+;          E:   Column (range 0..31)
+;          HL:  Pointer to string
+;          B:   Length of string
+;          C:   Attribute to apply to every other byte
+; OUTPUTS: HL points to end of data.  B are 0.  A is the attribute.  C is the
+;          data port.
+;          Destroys A, B, C, D, E
+;==============================================================================
+VDP_UploadStringToNameTable:
+    ; Calculate the VRAM position.
+
+    ; Remember that b << 6 is easier to rotate right twice
+    ; D = 00rr rrrr       ; High byte = Row * 64
+    ; E = rrcc cccc       ; Low byte = low bits from Row * 64 | column
+    ; D |= NameTable|Cmd  ; Add in nametable offset and "write to VRAM" command
+
+    ; Start with row.  This should be VDP_NAMETABLE_ROWSIZE_IN_BYTES * row.
+    xor     a
+    srl     d           ; Low bit of Row -> CY
+    rra                 ; A = r000 0000
+    srl     d           ; Low bit of Row -> CY
+    rra                 ; A = rr00 0000
+    sla     e           ; Col = col * 2 bytes per entry
+    or      e           ; A = rrcc ccc0
+    ld      e, a
+    ld      a, (VDP_NAMETABLE_START_LOC >> 8) | VDP_COMMAND_MASK_VRAM_WRITE
+    or      d
+    ld      d, a        ; Row = Nametable + row * 64
+
+    ; Set the VRAM pointer.
+    ld      a, e
+    out     (VDP_CONTROL_PORT), a           ; Set low byte of address in first byte
+    ld      a, d
+    or      VDP_COMMAND_MASK_VRAM_WRITE
+    out     (VDP_CONTROL_PORT), a           ; Set high byte of address + command
+
+    ; Now interleave the chars from the string with the attribute
+    ld      a, c
+    ld      c, VDP_DATA_PORT
+-:
+    outi                        ; Char from string
+    out     (VDP_DATA_PORT), a  ; Attribute
+
+    jp      nz, -
+
+    ret
+    
+.ENDS
+
 .SECTION "VDP Upload Sprite Data Routines" FREE
 ;==============================================================================
 ; VDP_UploadSpriteData
