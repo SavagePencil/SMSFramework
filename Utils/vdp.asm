@@ -244,6 +244,34 @@
     ld  de, ( VDP_COMMAND << 8 ) | ( VDP_NAMETABLE_START_LOC + ( ROW * VDP_NAMETABLE_ROWSIZE_IN_BYTES ) + ( COL * _sizeof_NameTableEntry ) )
 .ENDM
 
+; If you want to go from tile index to VRAM loc.
+.MACRO CALC_VRAM_LOC_FOR_TILE_INDEX_IN_HL
+    .REPT 5         ; 2 ^ 5 == 32, which is how many bytes there are in a tile.
+        add hl, hl
+    .ENDR
+.ENDM
+
+; If you want to set VRAM to write mode from value in HL.
+.MACRO SET_VRAM_WRITE_LOC_FROM_HL
+    ; Set the VRAM pointer.
+    ld      a, l
+    out     (VDP_CONTROL_PORT), a           ; Set low byte of address in first byte
+    ld      a, h
+    or      VDP_COMMAND_MASK_VRAM_WRITE
+    out     (VDP_CONTROL_PORT), a           ; Set high byte of address + command
+.ENDM
+
+; If you want to set VRAM to write mode from value in DE.
+.MACRO SET_VRAM_WRITE_LOC_FROM_DE
+    ; Set the VRAM pointer.
+    ld      a, e
+    out     (VDP_CONTROL_PORT), a           ; Set low byte of address in first byte
+    ld      a, d
+    or      VDP_COMMAND_MASK_VRAM_WRITE
+    out     (VDP_CONTROL_PORT), a           ; Set high byte of address + command
+.ENDM
+
+
 ;==============================================================================
 ; The sprite attribute table
 ;==============================================================================
@@ -338,9 +366,8 @@ VDP_SetPaletteEntries:
 ;==============================================================================
 VDP_UploadTileDataToTilePos:
     ; Find offset in VRAM.
-    .REPT 5         ; 2 ^ 5 == 32, which is how many bytes there are in a tile.
-        add hl, hl
-    .ENDR
+    CALC_VRAM_LOC_FOR_TILE_INDEX_IN_HL
+
     ex      de, hl  ; HL now points to tile data, DE points to VRAM loc
     jp      VDP_UploadDataToVRAMLoc
 
@@ -358,11 +385,7 @@ VDP_UploadTileDataToTilePos:
 ;==============================================================================
 VDP_UploadDataToVRAMLoc:
     ; Set the VRAM pointer.
-    ld      a, e
-    out     (VDP_CONTROL_PORT), a           ; Set low byte of address in first byte
-    ld      a, d
-    or      VDP_COMMAND_MASK_VRAM_WRITE
-    out     (VDP_CONTROL_PORT), a           ; Set high byte of address + command
+    SET_VRAM_WRITE_LOC_FROM_DE
 
     ld      d, b
     ld      e, c
@@ -593,6 +616,161 @@ VDP_UploadSpriteData:
     otir
 
     ret
+.ENDS
+
+.SECTION "VDP Upload 1bpp with Palette Remap" FREE
+;==============================================================================
+; VDP_Upload1BPPWithPaletteRemapToTilePos
+; Writes 1bpp data to VRAM, remapping 0 values to palette index 0 and 1
+; values to a specified palette entry.
+; INPUTS:  HL:  Tile index (16-bit since tiles go 0..448)
+;          BC:  Count of data to write, in bytes
+;          DE:  Pointer to 1bpp data
+;           A:  4-bit palette index to substitute for "1" values in 1bpp data
+; OUTPUTS: BC is 0, HL points to next byte after tile data.
+; Destroys A, D, E
+;==============================================================================
+VDP_Upload1BPPWithPaletteRemapToTilePos:
+    CALC_VRAM_LOC_FOR_TILE_INDEX_IN_HL
+    ex      de, hl
+
+    ; FALL THROUGH
+
+;==============================================================================
+; VDP_Upload1BPPWithPaletteRemapToVRAMLoc
+; Writes 1bpp data to VRAM, remapping 0 values to palette index 0 and 1
+; values to a specified palette entry.
+; INPUTS:  DE:  VRAM loc to upload to
+;          BC:  Count of data to write, in bytes
+;          HL:  Pointer to 1bpp data
+;           A:  4-bit palette index to substitute for "1" values in 1bpp data
+; OUTPUTS: BC is 0, HL points to next byte after tile data.
+; Destroys A, D, E
+;==============================================================================
+VDP_Upload1BPPWithPaletteRemapToVRAMLoc:
+    ; Set the VRAM write position.
+    ; Preserve our palette index
+    push    af
+        SET_VRAM_WRITE_LOC_FROM_DE
+    pop     af
+
+    ; FALL THROUGH
+
+;==============================================================================
+; VDP_Upload1BPPWithPaletteRemap_VRAMPtr_Set
+; Writes 1bpp data to VRAM, remapping 0 values to palette index 0 and 1
+; values to a specified palette entry.  Assumes the VRAM pointer has already
+; been set.
+; INPUTS:  BC:  Count of data to write, in bytes
+;          HL:  Pointer to 1bpp data
+;           A:  4-bit palette index to substitute for "1" values in 1bpp data
+; OUTPUTS: BC is 0, HL points to next byte after tile data.
+; Destroys A, D, E
+;==============================================================================
+VDP_Upload1BPPWithPaletteRemap_VRAMPtr_Set:
+    ld      e, a    ; Cache the remap palette
+
+-:
+    ld      d, e    ; Reload our remap palette
+
+    ; Each row of pixels is 4 bytes.
+.REPT 4
+    xor     a                   ; Start with a clean slate of pixels
+    rrc     d                   ; Next palette remap bit to Carry
+    jr      nc, +
+    ld      a, (hl)             ; We had a palette bit set, so load the 1s data from 1bpp stream.
++:
+    out     (VDP_DATA_PORT), a  ; Emit data
+.ENDR
+    inc     hl                  ; Next byte
+    dec     bc                  ; Are we done?
+    ld      a, b
+    or      c
+    jp      nz, -
+    ret
+.ENDS
+
+
+.SECTION "VDP Upload 1bpp With Palette Remaps" FREE
+
+; If we know palette values at assembling time, we can pre-interleave them.
+; If the palette to remap for 0s is abcd, and the palette for 1s is wxyz,
+; we want waxbyczd.
+;         76543210
+;             abcd <- 0s
+;             wxyz <- 1s
+.MACRO PRE_INTERLEAVE_1BPP_REMAP_ENTRIES ARGS PAL_0 PAL_1
+;           W                     A                      X                     B                     Y                     C                     Z                     D
+    ((PAL_1 & $8) << 4) | ((PAL_0 & $8)) << 3) | ((PAL_1 & $4) << 3) | ((PAL_0 & $4) << 2) | ((PAL_1 & $2) << 2) | ((PAL_0 & $2) << 1) | ((PAL_1 & $1) << 1) | ((PAL_0 & $1) << 0)
+.ENDM
+
+;==============================================================================
+; VDP_Upload1BPPWithPaletteRemaps_VRAMPtrSet
+; Writes 1bpp data to VRAM, remapping 0 values to one palette index and 1
+; values to a second palette entry.  Assumes that the VRAM pointer has already
+; been set.
+; INPUTS:  HL:  Src 1bpp tile data
+;          BC:  Count of data to write, in bytes
+;           E:  4-bit palette index to substitute for "0" values in 1bpp data
+;           D:  4-bit palette index to substitute for "1" values in 1bpp data
+; OUTPUTS: BC is 0, E is the interleaved palette data.  HL points to next byte
+;          after tile data.
+; Destroys A, D
+;==============================================================================
+VDP_Upload1BPPWithPaletteRemaps_VRAMPtrSet:
+    ; Interleave the 0s palette with the 1s palette, so that:
+    ; 0000 abcd <- 0s palette
+    ; 0000 wxyz <- 1s palette
+    ; ..becomes:
+    ; waxb yczd
+    xor     a
+.REPT 4
+    rrc     e       ; Move 0s bit to carry
+    rr      a       ; Interleave
+    rrc     d       ; Move 1st bit to carry
+    rr      a       ; Interleave
+.ENDR
+    ld      e, a    ; E holds our interleaved palette remaps
+
+    ; Colors are interleaved.  Now upload the darn data.
+    ; FALL THROUGH
+
+;==============================================================================
+; VDP_Upload1BPPWithPaletteRemaps_VRAMPtrSet_ColorsInterleaved
+; Writes 1bpp data to VRAM, remapping 0 values to one palette index and 1
+; values to a second palette entry.  Assumes that the VRAM pointer has already
+; been set, and that the palette entries are interleaved.
+; INPUTS:  HL:  Src 1bpp tile data
+;          BC:  Count of data to write, in bytes
+;           E:  Interleaved palette remaps (0s are even bits, 1s are odd bits)
+; OUTPUTS: BC is 0, E is the interleaved palette data.  HL points to next byte
+;          after tile data.
+; Destroys A, D
+;==============================================================================
+VDP_Upload1BPPWithPaletteRemaps_VRAMPtrSet_ColorsInterleaved:
+    ld      d, (hl)             ; Get 1 bpp bitmap data.
+
+    ; We'll do this 4 times, since each pixel row is 4 bytes.
+.REPT 4
+    xor     a                   ; Start with a clean slate in our pixel data.
+
+    rrc     e                   ; Get next 0s palette bit into carry.
+    jr      nc, +               ; Not set?  Skip.
+    xor     d                   ; 0s palette bit *WAS* set, so mask them in.
++:
+    rrc     e                   ; Get the next 1s palette bit into carry.
+    jr      nc, ++              ; Not set?  Skip.
+    or      d                   ; 1s palette *WAS* set, so mask them in.
+++:
+    out     (VDP_DATA_PORT), a  ; Emit the data.
+.ENDR
+    inc     hl                  ; Point to next byte
+    dec     bc
+    ld      a, b
+    or      c
+    jp      nz, VDP_Upload1BPPWithPaletteRemaps_VRAMPtrSet_ColorsInterleaved
+    ret
+
 .ENDS
 
 .ENDIF  ;__VDP_ASM__
