@@ -691,19 +691,19 @@ VDP_Upload1BPPWithPaletteRemap_VRAMPtr_Set:
 .ENDS
 
 
-.SECTION "VDP Upload 1bpp With Palette Remaps" FREE
-
 ; If we know palette values at assembling time, we can pre-interleave them.
 ; If the palette to remap for 0s is abcd, and the palette for 1s is wxyz,
 ; we want waxbyczd.
 ;         76543210
 ;             abcd <- 0s
 ;             wxyz <- 1s
-.MACRO PRE_INTERLEAVE_1BPP_REMAP_ENTRIES ARGS PAL_0 PAL_1
+.MACRO PRE_INTERLEAVE_1BPP_REMAP_ENTRIES ARGS PAL_0, PAL_1
 ;           W                     A                      X                     B                     Y                     C                     Z                     D
-    ((PAL_1 & $8) << 4) | ((PAL_0 & $8)) << 3) | ((PAL_1 & $4) << 3) | ((PAL_0 & $4) << 2) | ((PAL_1 & $2) << 2) | ((PAL_0 & $2) << 1) | ((PAL_1 & $1) << 1) | ((PAL_0 & $1) << 0)
+ld  e,    (PAL_1 & $8) << 4) ;| ((PAL_0 & $8)) << 3) | ((PAL_1 & $4) << 3) | ((PAL_0 & $4) << 2) | ((PAL_1 & $2) << 2) | ((PAL_0 & $2) << 1) | ((PAL_1 & $1) << 1) | ((PAL_0 & $1) << 0)
 .ENDM
 
+
+.SECTION "VDP Upload 1bpp With Palette Remaps" FREE
 ;==============================================================================
 ; VDP_Upload1BPPWithPaletteRemaps_VRAMPtrSet
 ; Writes 1bpp data to VRAM, remapping 0 values to one palette index and 1
@@ -756,7 +756,8 @@ VDP_Upload1BPPWithPaletteRemaps_VRAMPtrSet_ColorsInterleaved:
 
     rrc     e                   ; Get next 0s palette bit into carry.
     jr      nc, +               ; Not set?  Skip.
-    xor     d                   ; 0s palette bit *WAS* set, so mask them in.
+    ld      a, d                ; 0s palette bit *WAS* set...
+    cpl                         ; ...so mask the 0s in as 1s.
 +:
     rrc     e                   ; Get the next 1s palette bit into carry.
     jr      nc, ++              ; Not set?  Skip.
