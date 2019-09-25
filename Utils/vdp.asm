@@ -697,9 +697,9 @@ VDP_Upload1BPPWithPaletteRemap_VRAMPtr_Set:
 ;         76543210
 ;             abcd <- 0s
 ;             wxyz <- 1s
-.MACRO PRE_INTERLEAVE_1BPP_REMAP_ENTRIES ARGS PAL_0, PAL_1
-;           W                     A                      X                     B                     Y                     C                     Z                     D
-ld  e,    (PAL_1 & $8) << 4) ;| ((PAL_0 & $8)) << 3) | ((PAL_1 & $4) << 3) | ((PAL_0 & $4) << 2) | ((PAL_1 & $2) << 2) | ((PAL_0 & $2) << 1) | ((PAL_1 & $1) << 1) | ((PAL_0 & $1) << 0)
+.MACRO PRE_INTERLEAVE_1BPP_REMAP_ENTRIES_TO_E ARGS PAL_0, PAL_1
+;                  W                      A                      X                     B                     Y                     C                     Z                     D
+ld e,  < ( ((PAL_1 & $8) << 4) | (((PAL_0 & $8)) << 3) | ((PAL_1 & $4) << 3) | ((PAL_0 & $4) << 2) | ((PAL_1 & $2) << 2) | ((PAL_0 & $2) << 1) | ((PAL_1 & $1) << 1) | ((PAL_0 & $1) << 0) )
 .ENDM
 
 
