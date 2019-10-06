@@ -691,6 +691,8 @@ VDP_Upload1BPPWithPaletteRemap_VRAMPtr_Set:
 .ENDS
 
 
+
+.SECTION "VDP Upload 1bpp With Palette Remaps" FREE
 ; If we know palette values at assembling time, we can pre-interleave them.
 ; If the palette to remap for 0s is abcd, and the palette for 1s is wxyz,
 ; we want waxbyczd.
@@ -699,11 +701,10 @@ VDP_Upload1BPPWithPaletteRemap_VRAMPtr_Set:
 ;             wxyz <- 1s
 .MACRO PRE_INTERLEAVE_1BPP_REMAP_ENTRIES_TO_E ARGS PAL_0, PAL_1
 ;                  W                      A                      X                     B                     Y                     C                     Z                     D
-ld e,  < ( ((PAL_1 & $8) << 4) | (((PAL_0 & $8)) << 3) | ((PAL_1 & $4) << 3) | ((PAL_0 & $4) << 2) | ((PAL_1 & $2) << 2) | ((PAL_0 & $2) << 1) | ((PAL_1 & $1) << 1) | ((PAL_0 & $1) << 0) )
+    ld e,  < ( ((PAL_1 & $8) << 4) | (((PAL_0 & $8)) << 3) | ((PAL_1 & $4) << 3) | ((PAL_0 & $4) << 2) | ((PAL_1 & $2) << 2) | ((PAL_0 & $2) << 1) | ((PAL_1 & $1) << 1) | ((PAL_0 & $1) << 0) )
 .ENDM
 
 
-.SECTION "VDP Upload 1bpp With Palette Remaps" FREE
 ;==============================================================================
 ; VDP_Upload1BPPWithPaletteRemaps_VRAMPtrSet
 ; Writes 1bpp data to VRAM, remapping 0 values to one palette index and 1
@@ -772,6 +773,108 @@ VDP_Upload1BPPWithPaletteRemaps_VRAMPtrSet_ColorsInterleaved:
     jp      nz, VDP_Upload1BPPWithPaletteRemaps_VRAMPtrSet_ColorsInterleaved
     ret
 
+.ENDS
+
+.SECTION "VDP Generate 1bpp Mask From Tile Routines" FREE
+;==============================================================================
+; VDP_GenerateMaskFromTile_DefaultClearColor
+; Given a 4bpp planar tile, generate a 1bpp mask wherever a non-zero pixel
+; exists.  For example, assume this tile:
+;
+;   Plane 0  00110011
+;   Plane 1  10101010
+;   Plane 2  00000000
+;   Plane 3  11110001
+;
+;   ..the mask looks like this:
+;      Mask  11111011
+; 
+; INPUTS:  HL:  Src 4bpp tile data
+;          DE:  Dest loc for 1bpp data
+;           B:  Size of 1bpp data, in bytes
+; OUTPUTS:  B:  Zero
+;          HL:  Byte AFTER end of 4bpp tile
+;          DE:  Byte AFTER end of 1bpp mask
+; Destroys A
+;==============================================================================
+VDP_GenerateMaskFromTile_DefaultClearColor:
+    xor     a       ; Start with empty mask
+
+    .REPT 4
+        or      (hl)    ; Add in next byte
+        inc     hl
+    .ENDR
+
+    ld      (de), a ; Output mask byte
+    inc     de
+    djnz    VDP_GenerateMaskFromTile_DefaultClearColor
+    ret
+
+.ENDS
+
+.SECTION "VDP Composite Tile Routines" FREE
+;==============================================================================
+; VDP_CompositePlanarTilesWithMask_ToVRAM
+; Composites one tile over another, uploading into VRAM.  The tiles are planar,
+; 4bpp (same format as VRAM).  A 1bpp mask is provided to indicate which pixels
+; are clear.
+; INPUTS:  HL:  VRAM Loc to upload to
+;          IY:  4bpp Bottom tile to composite
+;          DE:  4bpp Top tile to composite
+;           B:  Count of data in mask, in bytes
+;          TOP OF STACK:  1bpp Mask for top tile
+; OUTPUTS: IY:  Points to byte AFTER end of bottom tile
+;          DE:  Poitns to byte AFTER end of top tile
+;          HL:  Points to byte AFTER end of 1bpp mask
+; Destroys A, C
+;==============================================================================
+VDP_CompositePlanarTiles_ToVRAM:
+    ; Set the VRAM loc.
+    SET_VRAM_WRITE_LOC_FROM_HL
+
+    pop     hl                      ; Get ptr to mask
+
+    ;FALL THROUGH
+
+;==============================================================================
+; VDP_CompositePlanarTiles_ToVRAM_VRAMPtrSet
+; Composites one tile over another, uploading into VRAM.  The tiles are planar,
+; 4bpp (same format as VRAM).  A 1bpp mask is provided to indicate which pixels
+; are clear.  Assumes the VRAM pointer has already been set.
+; INPUTS:  HL:  1bpp Mask for top tile
+;          IY:  4bpp Bottom tile to composite
+;          DE:  4bpp Top tile to composite
+;           B:  Count of data in mask, in bytes
+; OUTPUTS: IY:  Points to byte AFTER end of bottom tile
+;          DE:  Poitns to byte AFTER end of top tile
+;          HL:  Points to byte AFTER end of 1bpp mask
+; Destroys A, C
+;==============================================================================
+VDP_CompositePlanarTiles_ToVRAM_VRAMPtrSet:
+    .REPT 4
+        ; Mask the bottom tile data
+        ; We let bottom tile data through where the mask has 0s.
+        ld      a, (hl)             ; Get mask
+        cpl                         ; Invert mask.
+        and     (iy+$00)            ; Mask against bottom tile data
+        ld      c, a                ; C holds the masked bottom tile
+
+        ; Get the top tile data.
+        ; We let top tile data through where the mask has 1s.
+        ld      a, (de)             ; Get top tile data
+        and     (hl)                ; Mask it.
+
+        or      c                   ; Composite masked top w/bottom
+
+        out     (VDP_DATA_PORT), a
+
+        inc     iy
+        inc     de
+    .ENDR
+
+    inc     hl                      ; Move to next byte in mask
+    djnz    VDP_CompositePlanarTiles_ToVRAM_VRAMPtrSet
+    ret
 .ENDS
 
 .ENDIF  ;__VDP_ASM__
