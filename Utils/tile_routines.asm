@@ -75,6 +75,66 @@ Tile_Upload1BPPWithPaletteRemap_VRAMPtr_Set:
     ret
 .ENDS
 
+.SECTION "Tile Routines - Inflate 1bpp to 4bpp RAM with Palette Remap" FREE
+;==============================================================================
+; Tile_Inflate1BPPto4BPPRAMWithPaletteRemap
+; Inflates 1bpp data to 4bpp data in RAM, remapping 0 values to palette 
+; index 0 and 1 values to a specified palette entry.
+; INPUTS:  DE:  Dest loc for 4bpp data
+;          HL:  Pointer to 1bpp src data
+;           B:  Count of bytes in 1bpp src data
+;           A:  4-bit palette index to substitute for "1" values in 1bpp data
+; OUTPUTS: DE:  Points to byte PAST end of dest
+;          HL:  Points to byte PAST end of src
+;           B:  0
+;           C:  Palette entry, mirrored into high nibble
+; Destroys A
+;==============================================================================
+Tile_Inflate1BPPto4BPPRAMWithPaletteRemap:
+    ; Mirror the low nibble in color to the high nibble.
+    ld      c, a
+    rrca
+    rrca
+    rrca
+    rrca
+    or      c
+    ld      c, a    ; C has palette in high & low nibble.
+
+    ; FALL THROUGH
+
+;==============================================================================
+; Tile_Inflate1BPPto4BPPRAMWithPaletteRemap_PalMirrored
+; Inflates 1bpp data to 4bpp data in RAM, remapping 0 values to palette 
+; index 0 and 1 values to a specified palette entry.  Assumes the palette
+; nibble has been mirrored (e.g., if palette remap is 0111, we pass in
+; 0111 0111).
+; INPUTS:  DE:  Dest loc for 4bpp data
+;          HL:  Pointer to 1bpp src data
+;           B:  Count of bytes in 1bpp src data
+;           C:  4-bit palette index mirrored in top and bottom nibbles
+; OUTPUTS: DE:  Points to byte PAST end of dest
+;          HL:  Points to byte PAST end of src
+;           B:  0
+;           C:  Palette entry, mirrored into high nibble
+; Destroys A
+;==============================================================================
+Tile_Inflate1BPPto4BPPRAMWithPaletteRemap_PalMirrored:
+-:
+    ; Each row of pixels is 4 bytes
+.REPT 4
+    xor     a       ; Start with a clean slate.
+    rrc     c       ; Is the bit for this plane's color set?
+    jr      nc, +   ; No?  Skip and set all zeroes.
+    ld      a, (hl) ; If it WAS set, get the 1bpp val.
++:
+    ld      (de), a ; Output it.
+    inc     de      ; Move to next plane
+.ENDR
+    inc     hl      ; Next byte in src
+    djnz    -
+    ret
+
+.ENDS
 
 
 .SECTION "Tile Routines - Upload 1bpp With Palette Remaps" FREE
@@ -113,7 +173,7 @@ Tile_Upload1BPPWithPaletteRemaps_VRAMPtrSet:
 .REPT 4
     rrc     e       ; Move 0s bit to carry
     rr      a       ; Interleave
-    rrc     d       ; Move 1st bit to carry
+    rrc     d       ; Move 1s bit to carry
     rr      a       ; Interleave
 .ENDR
     ld      e, a    ; E holds our interleaved palette remaps
@@ -160,6 +220,92 @@ Tile_Upload1BPPWithPaletteRemaps_VRAMPtrSet_ColorsInterleaved:
 
 .ENDS
 
+.SECTION "Tile Routines - Inflate 1bpp to 4bpp RAM with Palette Remaps" FREE
+.MACRO PRE_INTERLEAVE_1BPP_REMAP_ENTRIES_TO_C ARGS PAL_0, PAL_1
+;                  W                      A                      X                     B                     Y                     C                     Z                     D
+    ld c,  < ( ((PAL_1 & $8) << 4) | (((PAL_0 & $8)) << 3) | ((PAL_1 & $4) << 3) | ((PAL_0 & $4) << 2) | ((PAL_1 & $2) << 2) | ((PAL_0 & $2) << 1) | ((PAL_1 & $1) << 1) | ((PAL_0 & $1) << 0) )
+.ENDM
+
+
+;==============================================================================
+; Tile_Inflate1BPPto4BPPRAMWithPaletteRemaps
+; Inflates 1bpp data to 4bpp data in RAM, remapping 0 values to one palette 
+; index and 1 values to another.
+; INPUTS:  DE:  Dest loc for 4bpp data
+;          HL:  Pointer to 1bpp src data
+;           B:  Count of bytes in 1bpp src data
+;           C:  4-bit palette index to substitute for "0" values in 1bpp data
+;           A:  4-bit palette index to substitute for "1" values in 1bpp data
+; OUTPUTS: DE:  Points to byte PAST end of dest
+;          HL:  Points to byte PAST end of src
+;           B:  0
+;           C:  Interleaved color
+; Destroys A
+;==============================================================================
+Tile_Inflate1BPPto4BPPRAMWithPaletteRemaps:
+    ; Interleave the 0s palette with the 1s palette, so that:
+    ; 0000 abcd <- 0s palette
+    ; 0000 wxyz <- 1s palette
+    ; ..becomes:
+    ; waxb yczd
+    push    de
+        ld      d, a    ; C holds 0s, D holds 1s
+
+        xor     a
+    .REPT 4
+        rrc     c       ; Move 0s bit to carry
+        rr      a       ; Interleave
+        rrc     d       ; Move 1s bit to carry
+        rr      a       ; Interleave
+    .ENDR
+        ld      c, a    ; C holds our interleaved palette remaps
+
+    pop     de
+    ; FALL THROUGH
+
+;==============================================================================
+; Tile_Inflate1BPPto4BPPRAMWithPaletteRemap_ColorsInterleaved
+; Inflates 1bpp data to 4bpp data in RAM, remapping 0 values to palette 
+; index 0 and 1 values to a specified palette entry.  Assumes the palette
+; entries have already been interleaved.
+; INPUTS:  DE:  Dest loc for 4bpp data
+;          HL:  Pointer to 1bpp src data
+;           B:  Count of bytes in 1bpp src data
+;           C:  Interleaved palette remaps (0s are even bits, 1s are odd bits)
+; OUTPUTS: DE:  Points to byte PAST end of dest
+;          HL:  Points to byte PAST end of src
+;           B:  0
+;           C:  Palette entry, interleaved
+; Destroys A
+;==============================================================================
+Tile_Inflate1BPPto4BPPRAMWithPaletteRemap_ColorsInterleaved:
+-:
+    ; Each row of pixels is 4 bytes
+.REPT 4
+    xor     a       ; Start with a clean slate.
+
+    ; Check if the palette bit is set for the 0s
+    rrc     c       ; Get next 0s palette bit into carry.
+    jr      nc, +   ; Not set?  Skip and set all zeroes.
+    ld      a, (hl) ; If it WAS set, get the 1bpp val.
+    cpl             ; Invert since these are the 0s becoming 1s
++:
+    ; Now check if the palette bit is set for the 1s.  If it is, we'll mask
+    ; it into what we currently have.
+    rrc     c
+    jr      nc, ++  ; Not set?  Skip.
+    or      (hl)    ; Bring in the 1s data
+++:
+    ld      (de), a ; Output the new val.
+    inc     de      ; Move to next byte in dest
+.ENDR
+    inc     hl      ; Next byte in src
+    djnz    -
+    ret
+
+.ENDS
+
+
 .SECTION "Tile Routines - Generate 1bpp Mask From Tile" FREE
 ;==============================================================================
 ; Tile_GenerateMaskFromTile_DefaultClearColor
@@ -198,29 +344,6 @@ Tile_GenerateMaskFromTile_DefaultClearColor:
 .ENDS
 
 .SECTION "Tile Routines - Composite Tile" FREE
-;==============================================================================
-; Tile_CompositePlanarTilesWithMask_ToVRAM
-; Composites one tile over another, uploading into VRAM.  The tiles are planar,
-; 4bpp (same format as VRAM).  A 1bpp mask is provided to indicate which pixels
-; are clear.
-; INPUTS:  HL:  VRAM Loc to upload to
-;          IY:  4bpp Bottom tile to composite
-;          DE:  4bpp Top tile to composite
-;           B:  Count of data in mask, in bytes
-;          TOP OF STACK:  1bpp Mask for top tile
-; OUTPUTS: IY:  Points to byte AFTER end of bottom tile
-;          DE:  Poitns to byte AFTER end of top tile
-;          HL:  Points to byte AFTER end of 1bpp mask
-; Destroys A, C
-;==============================================================================
-Tile_CompositePlanarTiles_ToVRAM:
-    ; Set the VRAM loc.
-    SET_VRAM_WRITE_LOC_FROM_HL
-
-    pop     hl                      ; Get ptr to mask
-
-    ;FALL THROUGH
-
 ;==============================================================================
 ; Tile_CompositePlanarTiles_ToVRAM_VRAMPtrSet
 ; Composites one tile over another, uploading into VRAM.  The tiles are planar,
