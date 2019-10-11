@@ -18,16 +18,12 @@
 ; State for joypad in port #1
 .DSTRUCT Controller_Joypad_Port1_State INSTANCEOF State VALUES:
     OnEnter:    .DW Controller_Joypad_OnEnter
-    OnExit:     .DW Controller_Joypad_OnExit
-    OnEvent:    .DW Controller_Joypad_OnEvent
     OnUpdate:   .DW Controller_Joypad_Port1_OnUpdate
 .ENDST
 
 ; State for joypad in port #2
 .DSTRUCT Controller_Joypad_Port2_State INSTANCEOF State VALUES:
     OnEnter:    .DW Controller_Joypad_OnEnter
-    OnExit:     .DW Controller_Joypad_OnExit
-    OnEvent:    .DW Controller_Joypad_OnEvent
     OnUpdate:   .DW Controller_Joypad_Port2_OnUpdate
 .ENDST
 
@@ -36,13 +32,6 @@ Controller_Joypad_OnEnter:
     ld  (ix + Controller.Joypad.Data.CurrentButtons), CONTROLLER_JOYPAD_UP_RELEASED | CONTROLLER_JOYPAD_DOWN_RELEASED | CONTROLLER_JOYPAD_LEFT_RELEASED | CONTROLLER_JOYPAD_RIGHT_RELEASED | CONTROLLER_JOYPAD_BUTTON1_RELEASED | CONTROLLER_JOYPAD_BUTTON2_RELEASED
     ld  (ix + Controller.Joypad.Data.PreviousButtons), CONTROLLER_JOYPAD_UP_RELEASED | CONTROLLER_JOYPAD_DOWN_RELEASED | CONTROLLER_JOYPAD_LEFT_RELEASED | CONTROLLER_JOYPAD_RIGHT_RELEASED | CONTROLLER_JOYPAD_BUTTON1_RELEASED | CONTROLLER_JOYPAD_BUTTON2_RELEASED
 
-    and a   ; Clear carry (no transition)
-    ret
-
-Controller_Joypad_OnExit:
-    ret
-
-Controller_Joypad_OnEvent:
     and a   ; Clear carry (no transition)
     ret
 

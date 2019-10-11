@@ -7,7 +7,6 @@
 
 .STRUCT State
     OnUpdate        DW
-    OnEvent         DW
     OnEnter         DW
     OnExit          DW
 .ENDST
@@ -30,6 +29,10 @@ FSM_OnUpdate:
     inc     hl
     ld      h, (hl)
     ld      l, a        ; HL now points to State.OnUpdate
+
+    or      h
+    ret     z           ; Early out if HL == 0000
+
     call    CallHL      ; Execute the function, then return here.
 
     ; If the carry flag is NOT set, we're done
@@ -65,8 +68,13 @@ FSM_ChangeState:
     inc     hl
     ld      h, (hl)
     ld      l, a        ; HL now points to the OnExit
+
+    or      h
+    jp      z, @NextState  ; Early out if HL == 0000
+
     call    CallHL      ; Execute the function, then return here.
 
+@NextState:
     ; Store the new state as our current one.
     pop     hl          ; Get the new state.
     ; Fall through to the FSMInit
@@ -96,6 +104,9 @@ FSM_Init:
     ld      h, (hl)
     ld      l, a        ; HL now points to the OnEnter
 
+    or      h
+    ret     z           ; Early out if HL == 0000
+
     call    CallHL      ; Execute the function, then return here.
 
     ; If the carry flag is NOT set, we're done.
@@ -106,9 +117,12 @@ FSM_Init:
 
 ;==============================================================================
 ; FSM_OnEvent
-; Passes an event to the current state of the machine and handles any
-; transitions that may occur.  How the event is passed is up to the caller.
+; Calls an arbitrary state function.  This allows FSM consumers to add as many
+; state functions as desired to their particular FSM.  This function may result
+; in the machine changing state, indicated by setting the Carry flag on return.
+; How parameters are passed to the function is up to the caller.
 ; INPUTS:  IX:  Pointer to current FSM
+;          DE:  Offset to State Event Function
 ; OUTPUTS:  None
 ; Does not preserve any registers.
 ;==============================================================================
@@ -117,15 +131,17 @@ FSM_OnEvent:
     ld      l, (ix + FSM.CurrentState + 0)
     ld      h, (ix + FSM.CurrentState + 1)
 
-    ; Advance to the OnEvent function pointer.
-    .REPEAT State.OnEvent
-        inc     hl
-    .ENDR
+    ; Advance to the appropriate function pointer.
+    add     hl, de
+
     ; Get the OnEvent pointer.
     ld      a, (hl)
     inc     hl
     ld      h, (hl)
     ld      l, a        ; HL now points to State.OnEvent
+
+    or      h
+    ret     z           ; Early out if HL == 0000
 
     call    CallHL      ; Execute the function, then return here.
 
