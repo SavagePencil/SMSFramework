@@ -84,7 +84,7 @@ FSM_ChangeState:
 ; Initializes an FSM with the desired state.  The new state may itself cause
 ; a transition.
 ; INPUTS:  IX:  Pointer to FSM
-;          HL:  New state to initialize with.
+;          HL:  Pointer to state to initialize with.
 ; OUTPUTS:  None
 ; Does not preserve any registers.
 ;==============================================================================
