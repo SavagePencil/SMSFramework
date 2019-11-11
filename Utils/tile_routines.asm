@@ -343,7 +343,7 @@ Tile_GenerateMaskFromTile_DefaultClearColor:
 
 .ENDS
 
-.SECTION "Tile Routines - Composite Tile" FREE
+.SECTION "Tile Routines - Composite Tile to VRAM" FREE
 ;==============================================================================
 ; Tile_CompositePlanarTiles_ToVRAM_VRAMPtrSet
 ; Composites one tile over another, uploading into VRAM.  The tiles are planar,
@@ -354,7 +354,7 @@ Tile_GenerateMaskFromTile_DefaultClearColor:
 ;          DE:  4bpp Top tile to composite
 ;           B:  Count of data in mask, in bytes
 ; OUTPUTS: IY:  Points to byte AFTER end of bottom tile
-;          DE:  Poitns to byte AFTER end of top tile
+;          DE:  Points to byte AFTER end of top tile
 ;          HL:  Points to byte AFTER end of 1bpp mask
 ; Destroys A, C
 ;==============================================================================
@@ -385,6 +385,94 @@ Tile_CompositePlanarTiles_ToVRAM_VRAMPtrSet:
     ret
 .ENDS
 
+.SECTION "Tile Routines - Composite Tiles In Place In RAM" FREE
+;==============================================================================
+; Tile_CompositePlanarTiles_InPlaceInRAM
+; Composites one tile over another in RAM.  The tiles are planar,
+; 4bpp (same format as VRAM).  A 1bpp mask is provided to indicate which pixels
+; are clear.  IMPORTANT:  Overwrites the contents of the bottom tile!
+; INPUTS:  HL:  1bpp Mask for top tile
+;          IY:  4bpp Bottom tile to composite (this is the destination tile)
+;          DE:  4bpp Top tile to composite
+;           B:  Count of data in mask, in bytes
+; OUTPUTS: IY:  Points to byte AFTER end of top area copied in src
+;          DE:  Points to byte AFTER end of top area copied
+;          HL:  Points to byte AFTER end of 1bpp mask area copied
+; Destroys A, C
+;==============================================================================
+Tile_CompositePlanarTiles_InPlaceInRAM:
+-:
+    .REPT 4
+        ; Mask the bottom tile data
+        ; We let bottom tile data through where the mask has 0s.
+        ld      a, (hl)             ; Get mask
+        cpl                         ; Invert mask.
+        and     (iy+$00)            ; Mask against bottom tile data
+        ld      c, a                ; C holds the masked bottom tile
+
+        ; Get the top tile data.
+        ; We let top tile data through where the mask has 1s.
+        ld      a, (de)             ; Get top tile data
+        and     (hl)                ; Mask it.
+
+        or      c                   ; Composite masked top w/bottom
+
+        ld      (iy+$00), a         ; Store back into bottom tile
+
+        inc     iy
+        inc     de
+    .ENDR
+
+    inc     hl                      ; Move to next byte in mask
+    djnz    -
+    ret
+.ENDS
+
+.SECTION "Tile Routines - Composite Tiles to New RAM Tile" FREE
+;==============================================================================
+; Tile_CompositePlanarTiles_ToNewRAMTile
+; Composites one tile over another, storing the results in a new location in 
+; RAM.  The tiles are planar, 4bpp (same format as VRAM).  A 1bpp mask is 
+; provided to indicate which pixels are clear.
+; INPUTS:  HL:  1bpp Mask for top tile
+;          IY:  4bpp Bottom tile to composite
+;          DE:  4bpp Top tile to composite
+;           B:  Count of data in mask, in bytes
+;          IX:  Loc in RAM to write the output to.
+; OUTPUTS: IY:  Points to byte AFTER end of top area copied in src
+;          DE:  Points to byte AFTER end of top area copied
+;          HL:  Points to byte AFTER end of 1bpp mask area copied
+;          IX:  Points to byte AFTER the last destination write
+; Destroys A, C
+;==============================================================================
+Tile_CompositePlanarTiles_ToNewRAMTile:
+-:
+    .REPT 4
+        ; Mask the bottom tile data
+        ; We let bottom tile data through where the mask has 0s.
+        ld      a, (hl)             ; Get mask
+        cpl                         ; Invert mask.
+        and     (iy+$00)            ; Mask against bottom tile data
+        ld      c, a                ; C holds the masked bottom tile
+
+        ; Get the top tile data.
+        ; We let top tile data through where the mask has 1s.
+        ld      a, (de)             ; Get top tile data
+        and     (hl)                ; Mask it.
+
+        or      c                   ; Composite masked top w/bottom
+
+        ld      (ix+$00), a         ; Store into the dest tile in RAM
+
+        inc     iy
+        inc     de
+        inc     ix
+    .ENDR
+
+    inc     hl                      ; Move to next byte in mask
+    djnz    -
+    ret
+.ENDS
 
 
 .ENDIF  ;__TILE_ROUTINES_ASM__

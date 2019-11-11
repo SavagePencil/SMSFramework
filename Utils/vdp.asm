@@ -176,7 +176,6 @@
         Row5            DSB 4
         Row6            DSB 4
         Row7            DSB 4
-        Row8            DSB 4
     .NEXTU
         Row0Bitplane0   DB      ; Super granular   
         Row0Bitplane1   DB
