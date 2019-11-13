@@ -68,15 +68,20 @@ SpriteChain_Clear:
 
 .ENDS
 
-.SECTION "Sprite Manager Render Chain Sequence" FREE
+.SECTION "Sprite Chain - Render Chain Sequence" FREE
 ;==============================================================================
-; SpriteManager_RenderChainSequence
+; SpriteChain_RenderChainSequence
 ; Renders an entire sequence of sprite chains.
 ; INPUTS:  HL: Head of the chain
 ; OUTPUTS:  D: #/sprites remaining
 ; Destroys A, B, C, D, H, L, IX
 ;==============================================================================
-SpriteManager_RenderChainSequence:
+SpriteChain_RenderChainSequence:
+    ; Summary of behavior:
+    ;  1. Go through each chain and upload the XPos and Tile data into the SAT
+    ;  2. If we max out the SAT, stop when we max out.
+    ;  3. Start over and do the exact same thing for the Y data
+
     push    hl      ; Save the initial chain
 
         ; Set the VRAM address for the X/Tile table.    
@@ -95,16 +100,16 @@ SpriteManager_RenderChainSequence:
         ; and so that we can insert a sentinel appropriately.
         ld  d, VDP_SAT_MAX_SPRITES
 
-_SpriteManager_RenderChainXPosTile:
+@RenderChainXPosTile:
         ; Are we out of sprite slots?
         ld      a, d
         and     a
-        jr      z, _SpriteManager_RenderChainXPosTileDone
+        jr      z, @XPosTileDone
 
         ; Is the chain pointer empty?
         ld      a, l
         or      h
-        jr      z, _SpriteManager_RenderChainXPosTileDone
+        jr      z, @XPosTileDone
 
         push    hl
         pop     ix
@@ -112,21 +117,21 @@ _SpriteManager_RenderChainXPosTile:
         ; How many do we intend to do?  If it's zero, skip.
         ld      a, (ix + SpriteChainHeader.CurrCount)
         and     a
-        jp      z, _SpriteManager_NextXPosTileChain
+        jp      z, @NextXPosTileChain
 
         ; Ensure we have enough room.
         ld      b, a
         ld      a, d
         sub     b
         ld      d, a
-        jp      nc, _SpriteManager_UploadXPosTileData
+        jp      nc, @UploadXPosTileData
         
         ; Overrunning?  Go to our max, but no more.
         add     a, b
         ld      b, a
         ld      d, 0
 
-_SpriteManager_UploadXPosTileData:
+@UploadXPosTileData:
         ; Now let's point to our data
         ld      l, (ix + SpriteChainHeader.XPosTileBegin + 0)
         ld      h, (ix + SpriteChainHeader.XPosTileBegin + 1)
@@ -137,13 +142,13 @@ _SpriteManager_UploadXPosTileData:
         ; Upload that data!
         otir
 
-_SpriteManager_NextXPosTileChain:
+@NextXPosTileChain:
         ; Move to the next chain, if there is one.
         ld      l, (ix + SpriteChainHeader.NextChain + 0)
         ld      h, (ix + SpriteChainHeader.NextChain + 1)
-        jp      _SpriteManager_RenderChainXPosTile
+        jp      @RenderChainXPosTile
 
-_SpriteManager_RenderChainXPosTileDone:
+@XPosTileDone:
     pop     hl      ; Restore original chain
 
     ; Set the VRAM address for the Y Pos table.    
@@ -160,16 +165,16 @@ _SpriteManager_RenderChainXPosTileDone:
 
     ld      d, VDP_SAT_MAX_SPRITES  ; Start at the max again.
 
-_SpriteManager_RenderChainYPos:
+@RenderChainYPos:
     ; Are we out of sprite slots?
     ld      a, d
     and     a
-    jr      z, _SpriteManager_RenderChainYPosDone
+    jr      z, @RenderChainYPosDone
 
     ; Is the chain pointer empty?
     ld      a, l
     or      h
-    jr      z, _SpriteManager_RenderChainYPosDone
+    jr      z, @RenderChainYPosDone
 
     push    hl
     pop     ix
@@ -177,21 +182,21 @@ _SpriteManager_RenderChainYPos:
     ; How many do we intend to do?  If it's zero, skip.
     ld      a, (ix + SpriteChainHeader.CurrCount)
     and     a
-    jp      z, _SpriteManager_NextYPosChain
+    jp      z, @NextYPosChain
 
     ; Ensure we have enough room.
     ld      b, a
     ld      a, d
     sub     b
     ld      d, a
-    jp      nc, _SpriteManager_UploadYPosData
+    jp      nc, @UploadYPosData
     
     ; Overrunning?  Go to our max, but no more.
     add     a, b
     ld      b, a
     ld      d, 0
 
-_SpriteManager_UploadYPosData:
+@UploadYPosData:
     ; Now let's point to our data
     ld      l, (ix + SpriteChainHeader.YPosBegin + 0)
     ld      h, (ix + SpriteChainHeader.YPosBegin + 1)
@@ -199,13 +204,13 @@ _SpriteManager_UploadYPosData:
     ; Upload that data!
     otir
 
-_SpriteManager_NextYPosChain:
+@NextYPosChain:
     ; Move to the next chain, if there is one.
     ld      l, (ix + SpriteChainHeader.NextChain + 0)
     ld      h, (ix + SpriteChainHeader.NextChain + 1)
-    jp      _SpriteManager_RenderChainYPos
+    jp      @RenderChainYPos
 
-_SpriteManager_RenderChainYPosDone:
+@RenderChainYPosDone:
     ; If there's still room left in the SAT, output the sentinel marker.
     ld      a, d
     and     a
