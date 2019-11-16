@@ -93,7 +93,7 @@ InputManager_OnUpdate:
     ret
 .ENDS
 
-.SECTION "Input Manager Set Controller Type"
+.SECTION "Input Manager Set Controller Type" FREE
 ;==============================================================================
 ; InputManager_SetController
 ; Assigns the controller to the port in question, and initializes it.
