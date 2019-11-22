@@ -149,6 +149,22 @@ Tile_Inflate1BPPto4BPPRAMWithPaletteRemap_PalMirrored:
     ld e,  < ( ((PAL_1 & $8) << 4) | (((PAL_0 & $8)) << 3) | ((PAL_1 & $4) << 3) | ((PAL_0 & $4) << 2) | ((PAL_1 & $2) << 2) | ((PAL_0 & $2) << 1) | ((PAL_1 & $1) << 1) | ((PAL_0 & $1) << 0) )
 .ENDM
 
+.MACRO PRE_INTERLEAVE_1BPP_REMAP_ENTRIES_TO_E_FROM_DE
+    ; Interleave the 0s palette with the 1s palette, so that:
+    ; 0000 abcd <- 0s palette
+    ; 0000 wxyz <- 1s palette
+    ; ..becomes:
+    ; waxb yczd
+    xor     a
+.REPT 4
+    rrc     e       ; Move 0s bit to carry
+    rr      a       ; Interleave
+    rrc     d       ; Move 1s bit to carry
+    rr      a       ; Interleave
+.ENDR
+    ld      e, a    ; E holds our interleaved palette remaps
+.ENDM
+
 
 ;==============================================================================
 ; Tile_Upload1BPPWithPaletteRemaps_VRAMPtrSet
@@ -169,14 +185,7 @@ Tile_Upload1BPPWithPaletteRemaps_VRAMPtrSet:
     ; 0000 wxyz <- 1s palette
     ; ..becomes:
     ; waxb yczd
-    xor     a
-.REPT 4
-    rrc     e       ; Move 0s bit to carry
-    rr      a       ; Interleave
-    rrc     d       ; Move 1s bit to carry
-    rr      a       ; Interleave
-.ENDR
-    ld      e, a    ; E holds our interleaved palette remaps
+    PRE_INTERLEAVE_1BPP_REMAP_ENTRIES_TO_E_FROM_DE
 
     ; Colors are interleaved.  Now upload the darn data.
     ; FALL THROUGH
