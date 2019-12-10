@@ -1,3 +1,6 @@
+.IFNDEF __MODE_MANAGER_ASM__
+.DEFINE __MODE_MANAGER_ASM__
+
 .STRUCT ApplicationMode
     ; The video interrupt handler is special, for optimization purposes:
     ; 1. It is a JUMP TARGET rather than a subroutine.  You'll have to provide your own RET.
@@ -13,9 +16,10 @@
 
 .DEFINE MODEMANAGER_MAX_MODE_DEPTH 4    ; Max #/modes allowed
 .STRUCT ModeManager
-    CurrMode            DW  ; Cache of pointer to current mode
-    TopOfStack          DW  ; Pointer to current top of stack
-    Stack               DSW MODEMANAGER_MAX_MODE_DEPTH  ; Stack entires
+    CurrMode                        DW  ; Cache of pointer to current mode
+    CurrVideoInterruptJumpTarget    DW  ; Where are we jumping to on video interrupt?
+    TopOfStack                      DW  ; Pointer to current top of stack
+    Stack                           DSW MODEMANAGER_MAX_MODE_DEPTH  ; Stack entires
 .ENDST
 
 .RAMSECTION "Mode Manager" SLOT 3
@@ -68,11 +72,11 @@ ModeManager_Init:
     ; Get the mode into IX
     ld      ix, (gModeManager.CurrMode)
 
-    ; Prep the video interrupt, which is held in HL' for speedy calling.
-    exx
-        ld  l', (ix + ApplicationMode.VideoInterruptJumpTarget + 0)
-        ld  h', (ix + ApplicationMode.VideoInterruptJumpTarget + 1)
-    exx
+    ; Prep the video interrupt in a global.
+    ld      l, (ix + ApplicationMode.VideoInterruptJumpTarget + 0)
+    ld      h, (ix + ApplicationMode.VideoInterruptJumpTarget + 1)
+    ld      (gModeManager.CurrVideoInterruptJumpTarget), hl
+
 
     ; Now call the OnActiveStateChanged for this mode.
     ld      l, (ix + ApplicationMode.OnActive)
@@ -103,11 +107,10 @@ ModeManager_SetMode:
     pop     ix
     ld      (gModeManager.CurrMode), ix
 
-    ; Prep the video interrupt, which is held in HL' for speedy calling.
-    exx
-        ld  l', (ix + ApplicationMode.VideoInterruptJumpTarget + 0)
-        ld  h', (ix + ApplicationMode.VideoInterruptJumpTarget + 1)
-    exx
+    ; Prep the video interrupt in a global.
+    ld      l, (ix + ApplicationMode.VideoInterruptJumpTarget + 0)
+    ld      h, (ix + ApplicationMode.VideoInterruptJumpTarget + 1)
+    ld      (gModeManager.CurrVideoInterruptJumpTarget), hl
 
     ; Tell the new mode that they are now active.
     ld      l, (ix + ApplicationMode.OnActive + 0)
@@ -156,11 +159,10 @@ ModeManager_PushMode:
     ; Get it into IX
     ld      ix, (gModeManager.CurrMode)
 
-    ; Prep the video interrupt, which is held in HL' for speedy calling.
-    exx
-        ld  l', (ix + ApplicationMode.VideoInterruptJumpTarget + 0)
-        ld  h', (ix + ApplicationMode.VideoInterruptJumpTarget + 1)
-    exx
+    ; Prep the video interrupt in a global.
+    ld      l, (ix + ApplicationMode.VideoInterruptJumpTarget + 0)
+    ld      h, (ix + ApplicationMode.VideoInterruptJumpTarget + 1)
+    ld      (gModeManager.CurrVideoInterruptJumpTarget), hl
 
     ; Now call the OnActiveStateChanged for the new mode.
     ld      l, (ix + ApplicationMode.OnActive + 0)
@@ -205,11 +207,10 @@ ModeManager_PopMode:
     ; Get the new mode into IX
     ld      ix, (gModeManager.CurrMode)
 
-    ; Prep the video interrupt, which is held in HL' for speedy calling.
-    exx
-        ld  l', (ix + ApplicationMode.VideoInterruptJumpTarget + 0)
-        ld  h', (ix + ApplicationMode.VideoInterruptJumpTarget + 1)
-    exx
+    ; Prep the video interrupt in a global.
+    ld      l, (ix + ApplicationMode.VideoInterruptJumpTarget + 0)
+    ld      h, (ix + ApplicationMode.VideoInterruptJumpTarget + 1)
+    ld      (gModeManager.CurrVideoInterruptJumpTarget), hl
 
     ; Now call the OnActiveStateChanged for the new mode.
     ld      l, (ix + ApplicationMode.OnActive + 0)
@@ -271,3 +272,5 @@ ModeManager_OnEvent:
     jp (hl)
 
 .ENDS
+
+.ENDIF ;__MODE_MANAGER_ASM__
