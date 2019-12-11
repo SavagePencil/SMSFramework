@@ -437,6 +437,48 @@ Tile_CompositePlanarTiles_InPlaceInRAM:
     ret
 .ENDS
 
+.SECTION "Tile Routines - Composite Tiles In Place In RAM FAST" FREE
+;==============================================================================
+; Tile_CompositePlanarTiles_InPlaceInRAM_FAST
+; Optimized method to composites one tile over another in RAM.  The tiles are 
+; planar, 4bpp (same format as VRAM).  An *inverted* 1bpp mask is provided to 
+; indicate which pixels of the bottom tile should come through.  Uses the alt 
+; register set.  Assumes that the 1bpp mask actually matches the top tile.
+; IMPORTANT:  Overwrites the contents of the bottom tile!
+; INPUTS:  HL:  *inverted* 1bpp Mask for top tile
+;          DE:  4bpp Bottom tile to composite (this is the destination tile)
+;          HL': 4bpp Top tile to composite
+;           B:  Count of data in mask, in bytes
+; OUTPUTS: HL': Points to byte AFTER end of top area copied in src
+;          DE:  Points to byte AFTER end of bottom area
+;          HL:  Points to byte AFTER end of 1bpp mask area copied
+;           B:  0
+; Destroys A, B, DE, HL
+;==============================================================================
+Tile_CompositePlanarTiles_InPlaceInRAM_FAST:
+-:
+    .REPT 4
+        ; Mask out the area on the bottom tile.
+        ld      a, (de)
+        and     (hl)        ; Mask bottom area
+
+        ; Get the top tile data.
+        exx
+            ; Composite in the top tile data.
+            or  (hl)
+            inc hl
+        exx
+
+        ld      (de), a     ; Store back into bottom tile.
+
+        inc     de
+    .ENDR
+
+    inc     hl              ; Move to next byte in mask
+    djnz    -
+    ret
+.ENDS
+
 .SECTION "Tile Routines - Composite Tiles to New RAM Tile" FREE
 ;==============================================================================
 ; Tile_CompositePlanarTiles_ToNewRAMTile
@@ -496,8 +538,12 @@ Tile_CompositePlanarTiles_ToNewRAMTile:
 ;          HL': 4bpp Top tile to composite
 ;          DE': Loc in RAM to write the output to.
 ;           B:  Count of data in mask, in bytes
-; OUTPUTS: HL:  Byte after end of mask
-; Destroys TODO
+; OUTPUTS:  B:  0
+;          HL:  Byte after end of mask
+;          DE:  Byte after bottom tile
+;          HL': Byte after top tile
+;          DE': Byte after dest loc
+; Destroys A, B, DE, HL, DE', HL'
 ;==============================================================================
 Tile_CompositePlanarTiles_ToNewRAMTile_FAST:
 -:
