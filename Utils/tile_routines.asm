@@ -533,45 +533,39 @@ Tile_CompositePlanarTiles_ToNewRAMTile:
 ; mask is provided to indicate which pixels of the bottom tile should come
 ; through.  Uses the alt register set.  Assumes that the 1bpp mask actually
 ; matches the top tile.
-; INPUTS:  HL:  Inverted 1bpp Mask for Top tile
-;          DE:  4bpp Bottom tile to composite
-;          HL': 4bpp Top tile to composite
+; INPUTS:  DE:  Inverted 1bpp Mask for Top tile
+;          HL:  4bpp Top tile to composite
+;          HL': 4bpp Bottom tile to composite
 ;          DE': Loc in RAM to write the output to.
 ;           B:  Count of data in mask, in bytes
 ; OUTPUTS:  B:  0
-;          HL:  Byte after end of mask
-;          DE:  Byte after bottom tile
-;          HL': Byte after top tile
+;          DE:  Byte after end of mask
+;          HL:  Byte after Top tile
+;          HL': Byte after Bottom tile
 ;          DE': Byte after dest loc
-; Destroys A, B, DE, HL, DE', HL'
+; Destroys A, B, C, DE, HL, DE', HL'
 ;==============================================================================
 Tile_CompositePlanarTiles_ToNewRAMTile_FAST:
 -:
+    ld      a, (de)         ; Get mask
+    exx
+        ld      c', a       ; Hold onto the mask
     .REPT 4
-        ; Mask in the bottom tile data.
-        ; We let the bottom tile data through where the mask has 1s
-        ld      a, (de) ; Bottom tile data
-        and     (hl)    ; Mask
-        exx             ; Swap; A holds masked bottom tile data.
+        ld      a, (hl')    ; Get bottom tile
+        and     c'          ; Mask it
+        exx
+            or      (hl)    ; Composite against top tile
+            inc     hl      ; Advance Top
+        exx
+        ld  (de'), a        ; Output
 
-            ; Composite in the top tile data.
-            or      (hl)
-
-            ; Now out to dest.
-            ld      (de), a
-
-            ; Advance Top & Dest
-            inc     hl
-            inc     de
-
-        exx             ; Swap
-
-        ; Advance bottom
-        inc de
+        ; Advance Bottom & Dest
+        inc     hl'
+        inc     de'
     .ENDR
-
+    exx
     ; Advance mask
-    inc     hl
+    inc     de
     djnz    -
     ret
 .ENDS
