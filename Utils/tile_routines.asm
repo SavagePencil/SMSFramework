@@ -394,6 +394,44 @@ Tile_CompositePlanarTiles_ToVRAM_VRAMPtrSet:
     ret
 .ENDS
 
+.SECTION "Tile Routines - Composite Tile to VRAM FAST" FREE
+;==============================================================================
+; Tile_CompositePlanarTiles_ToVRAM_VRAMPtrSet_FAST
+; Composites one tile over another, uploading into VRAM.  The tiles are planar,
+; 4bpp (same format as VRAM).  An *inverted* 1bpp mask is provided to 
+; indicate which pixels of the bottom tile should come through.  Uses the alt 
+; register set.  Assumes that the 1bpp mask actually matches the top tile.
+; INPUTS:  HL:  1bpp Mask for top tile
+;          DE': 4bpp Bottom tile to composite
+;          HL': 4bpp Top tile to composite
+;           B:  Count of data in mask, in bytes
+; OUTPUTS:  B:  0
+;          DE': Points to byte AFTER end of bottom tile
+;          HL': Points to byte AFTER end of top tile
+;          HL:  Points to byte AFTER end of 1bpp mask
+; Destroys A, B, C', DE, DE', HL, HL'
+;==============================================================================
+Tile_CompositePlanarTiles_ToVRAM_VRAMPtrSet_FAST:
+-:
+    ld      a, (hl) ; Get mask
+    exx
+        ld      c', a   ; Store mask
+        .REPT 4
+            ld      a, (de')            ; Get bottom tile
+            and     c'                  ; Mask against bottom tile
+            or      (hl')               ; Mask in the top tile.
+            out     (VDP_DATA_PORT), a  ; Output to VRAM
+
+            inc     de'                 ; Advance bottom tile
+            inc     hl'                 ; Advance top tile
+        .ENDR
+    exx
+
+    inc     hl                          ; Increment mask pointer
+    djnz    -
+    ret
+.ENDS
+
 .SECTION "Tile Routines - Composite Tiles In Place In RAM" FREE
 ;==============================================================================
 ; Tile_CompositePlanarTiles_InPlaceInRAM
