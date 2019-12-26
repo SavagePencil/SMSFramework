@@ -409,16 +409,16 @@ Tile_CompositePlanarTiles_ToVRAM_VRAMPtrSet:
 ;          DE': Points to byte AFTER end of bottom tile
 ;          HL': Points to byte AFTER end of top tile
 ;          HL:  Points to byte AFTER end of 1bpp mask
-; Destroys A, B, C', DE, DE', HL, HL'
+; Destroys A, B, B', DE, DE', HL, HL'
 ;==============================================================================
 Tile_CompositePlanarTiles_ToVRAM_VRAMPtrSet_FAST:
 -:
     ld      a, (hl) ; Get mask
     exx
-        ld      c', a   ; Store mask
+        ld      b', a   ; Store mask
         .REPT 4
             ld      a, (de')            ; Get bottom tile
-            and     c'                  ; Mask against bottom tile
+            and     b'                  ; Mask against bottom tile
             or      (hl')               ; Mask in the top tile.
             out     (VDP_DATA_PORT), a  ; Output to VRAM
 
