@@ -432,6 +432,51 @@ Tile_CompositePlanarTiles_ToVRAM_VRAMPtrSet_FAST:
     ret
 .ENDS
 
+.SECTION "Tile Routines - Composite Interleaved Mask and Tile to VRAM" FREE
+;==============================================================================
+; Tile_CompositeInterleavedTileData_ToVRAM_VRAMPTRSet
+; Composites one tile over another, uploading into VRAM.  The tiles are planar,
+; 4bpp (same format as VRAM).  An *inverted* 1bpp mask is provided to 
+; indicate which pixels of the bottom tile should come through.  Assumes that 
+; the 1bpp mask actually matches the top tile.  Mask data and top tile data
+; are interleaved like so:
+;   Byte    Value
+;   ====    =====
+;     0     Inverted pixel mask for row
+;     1     Top tile pixel plane 0
+;     2     Top tile pixel plane 1
+;     3     Top tile pixel plane 2
+;     4     Top tile pixel plane 3
+;     5     Inverted pixel mask for next row
+;     .     .
+;     .     .
+;     .     .
+; INPUTS:  HL:  Interleaved inverted pixel mask and top pixel data
+;          DE:  4bpp Bottom tile to composite
+;           B:  Count of data in mask, in bytes
+; OUTPUTS:  B:  0
+;          DE:  Points to byte AFTER end of bottom tile
+;          HL:  Points to byte AFTER end of interleaved mask/top tile data
+; Destroys A, B, C, DE, HL
+;==============================================================================
+Tile_CompositeInterleavedTileData_ToVRAM_VRAMPTRSet:
+-:
+    ; Get mask data.
+    ld      c, (hl)
+    inc     hl
+.REPT 4
+    ld      a, (de)             ; Get bottom tile
+    and     c                   ; Mask it
+    or      (hl)                ; Composite top tile
+    out     (VDP_DATA_PORT), a  ; Out!
+    inc     hl                  ; Advance mask/top ptr
+    inc     de
+.ENDR
+    djnz    -
+    ret
+
+.ENDS
+
 .SECTION "Tile Routines - Composite Tiles In Place In RAM" FREE
 ;==============================================================================
 ; Tile_CompositePlanarTiles_InPlaceInRAM
