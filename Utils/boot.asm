@@ -59,5 +59,31 @@ SMSFramework_Bootstrap:
 ; Does not preserve any registers.
 ;==============================================================================
 CallHL:
-    jp (hl)
+    jp hl
+.ENDS
+
+.SECTION "Helper Function CallIX" FREE
+;==============================================================================
+; CallIX
+; Helper function to set a return location immediately after a function pointer
+; call.
+; INPUTS:  IX = Function pointer to call.
+; OUTPUTS:  None
+; Does not preserve any registers.
+;==============================================================================
+CallIX:
+    jp ix
+.ENDS
+
+.SECTION "Helper Function CallIY" FREE
+;==============================================================================
+; CallIY
+; Helper function to set a return location immediately after a function pointer
+; call.
+; INPUTS:  IY = Function pointer to call.
+; OUTPUTS:  None
+; Does not preserve any registers.
+;==============================================================================
+CallIY:
+    jp iy
 .ENDS
