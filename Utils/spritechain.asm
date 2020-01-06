@@ -1,7 +1,7 @@
 .IFNDEF __SPRITECHAIN_ASM__
 .DEFINE __SPRITECHAIN_ASM__
 
-.STRUCT SpriteChainHeader
+.STRUCT sSpriteChainHeader
     CurrCount       DB      ; #/entries in this chain
     MaxCount        DB      ; Max #/entries allowed
     NextChain       DW      ; Ptr to next one, if any
@@ -22,13 +22,13 @@
 ; OUTPUTS: NONE
 ;==============================================================================
 SpriteChain_Init:
-    ld      (ix + SpriteChainHeader.MaxCount), a
-    ld      (ix + SpriteChainHeader.NextChain + 0), c
-    ld      (ix + SpriteChainHeader.NextChain + 1), b
-    ld      (ix + SpriteChainHeader.YPosBegin + 0), e
-    ld      (ix + SpriteChainHeader.YPosBegin + 1), d
-    ld      (ix + SpriteChainHeader.XPosTileBegin + 0), l
-    ld      (ix + SpriteChainHeader.XPosTileBegin + 1), h
+    ld      (ix + sSpriteChainHeader.MaxCount), a
+    ld      (ix + sSpriteChainHeader.NextChain + 0), c
+    ld      (ix + sSpriteChainHeader.NextChain + 1), b
+    ld      (ix + sSpriteChainHeader.YPosBegin + 0), e
+    ld      (ix + sSpriteChainHeader.YPosBegin + 1), d
+    ld      (ix + sSpriteChainHeader.XPosTileBegin + 0), l
+    ld      (ix + sSpriteChainHeader.XPosTileBegin + 1), h
 
     ; FALL THROUGH
 
@@ -39,12 +39,12 @@ SpriteChain_Init:
 ; OUTPUTS: NONE
 ;==============================================================================
 SpriteChain_Clear:
-    ld      (ix + SpriteChainHeader.CurrCount), $00
+    ld      (ix + sSpriteChainHeader.CurrCount), $00
 
     ret
 
 .MACRO SPRITE_CHAIN_PREP_ENQUEUE_CHAIN_IN_IX ARGS Y_POS_TABLE, X_POS_TABLE
-    ld  e, (ix + SpriteChainHeader.CurrCount)
+    ld  e, (ix + sSpriteChainHeader.CurrCount)
     ld  d, $00
     ld  hl, Y_POS_TABLE
     add hl, de
@@ -63,7 +63,7 @@ SpriteChain_Clear:
     ld  (hl), c         ; Enqueue the tile
     inc hl
 
-    inc (ix + SpriteChainHeader.CurrCount)
+    inc (ix + sSpriteChainHeader.CurrCount)
 .ENDM
 
 .ENDS
@@ -115,7 +115,7 @@ SpriteChain_RenderChainSequence:
         pop     ix
 
         ; How many do we intend to do?  If it's zero, skip.
-        ld      a, (ix + SpriteChainHeader.CurrCount)
+        ld      a, (ix + sSpriteChainHeader.CurrCount)
         and     a
         jp      z, @NextXPosTileChain
 
@@ -133,8 +133,8 @@ SpriteChain_RenderChainSequence:
 
 @UploadXPosTileData:
         ; Now let's point to our data
-        ld      l, (ix + SpriteChainHeader.XPosTileBegin + 0)
-        ld      h, (ix + SpriteChainHeader.XPosTileBegin + 1)
+        ld      l, (ix + sSpriteChainHeader.XPosTileBegin + 0)
+        ld      h, (ix + sSpriteChainHeader.XPosTileBegin + 1)
 
         ; Byte count is doubled because we're doing XPos + Tile
         sla     b
@@ -144,8 +144,8 @@ SpriteChain_RenderChainSequence:
 
 @NextXPosTileChain:
         ; Move to the next chain, if there is one.
-        ld      l, (ix + SpriteChainHeader.NextChain + 0)
-        ld      h, (ix + SpriteChainHeader.NextChain + 1)
+        ld      l, (ix + sSpriteChainHeader.NextChain + 0)
+        ld      h, (ix + sSpriteChainHeader.NextChain + 1)
         jp      @RenderChainXPosTile
 
 @XPosTileDone:
@@ -180,7 +180,7 @@ SpriteChain_RenderChainSequence:
     pop     ix
 
     ; How many do we intend to do?  If it's zero, skip.
-    ld      a, (ix + SpriteChainHeader.CurrCount)
+    ld      a, (ix + sSpriteChainHeader.CurrCount)
     and     a
     jp      z, @NextYPosChain
 
@@ -198,16 +198,16 @@ SpriteChain_RenderChainSequence:
 
 @UploadYPosData:
     ; Now let's point to our data
-    ld      l, (ix + SpriteChainHeader.YPosBegin + 0)
-    ld      h, (ix + SpriteChainHeader.YPosBegin + 1)
+    ld      l, (ix + sSpriteChainHeader.YPosBegin + 0)
+    ld      h, (ix + sSpriteChainHeader.YPosBegin + 1)
 
     ; Upload that data!
     otir
 
 @NextYPosChain:
     ; Move to the next chain, if there is one.
-    ld      l, (ix + SpriteChainHeader.NextChain + 0)
-    ld      h, (ix + SpriteChainHeader.NextChain + 1)
+    ld      l, (ix + sSpriteChainHeader.NextChain + 0)
+    ld      h, (ix + sSpriteChainHeader.NextChain + 1)
     jp      @RenderChainYPos
 
 @RenderChainYPosDone:

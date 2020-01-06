@@ -164,7 +164,7 @@
 ;
 ; The upper left pixel is color %1010. 
 ;==============================================================================
-.STRUCT Tile
+.STRUCT sTile
     .UNION
         Data            DSB 32  ; 32 bytes of data, if you know what you're doing.
     .NEXTU
@@ -226,7 +226,7 @@
 ;
 ; You can think of the bank select + tile index as a 9th bit for 0..511.
 ;==============================================================================
-.STRUCT NameTableEntry
+.STRUCT sNameTableEntry
     .UNION
         Data            DW
     .NEXTU
@@ -235,12 +235,12 @@
     .ENDU
 .ENDST
 
-.DEFINE VDP_NAMETABLE_ROWSIZE_IN_BYTES                  VDP_NAMETABLE_NUMCOLS * _sizeof_NameTableEntry
+.DEFINE VDP_NAMETABLE_ROWSIZE_IN_BYTES                  VDP_NAMETABLE_NUMCOLS * _sizeof_sNameTableEntry
 
 ; If you already know the row and column you intend to write to, we can
 ; embed the destination VRAM address.
 .MACRO VDP_NAMETABLE_CALC_VRAM_ADDRESS_DE ARGS ROW, COL, VDP_COMMAND
-    ld  de, ( VDP_COMMAND << 8 ) | ( VDP_NAMETABLE_START_LOC + ( ROW * VDP_NAMETABLE_ROWSIZE_IN_BYTES ) + ( COL * _sizeof_NameTableEntry ) )
+    ld  de, ( VDP_COMMAND << 8 ) | ( VDP_NAMETABLE_START_LOC + ( ROW * VDP_NAMETABLE_ROWSIZE_IN_BYTES ) + ( COL * _sizeof_sNameTableEntry ) )
 .ENDM
 
 ; If you want to go from tile index to VRAM loc.
@@ -274,21 +274,21 @@
 ;==============================================================================
 ; The sprite attribute table
 ;==============================================================================
-.STRUCT SAT_YPosEntry
+.STRUCT sSAT_YPosEntry
     YPos:               DB
 .ENDST
 
-.STRUCT SAT_XPosTileEntry
+.STRUCT sSAT_XPosTileEntry
     XPos:               DB
     TileIndex:          DB
 .ENDST
 
-.STRUCT SAT_YTable:
-    YPosEntries INSTANCEOF SAT_YPosEntry VDP_SAT_MAX_SPRITES
+.STRUCT sSAT_YTable:
+    YPosEntries INSTANCEOF sSAT_YPosEntry VDP_SAT_MAX_SPRITES
 .ENDST
 
-.STRUCT SAT_XTileTable:
-    XPosEntries INSTANCEOF SAT_XPosTileEntry VDP_SAT_MAX_SPRITES
+.STRUCT sSAT_XTileTable:
+    XPosEntries INSTANCEOF sSAT_XPosTileEntry VDP_SAT_MAX_SPRITES
 .ENDST
 
 .SECTION "VDP Write Register" FREE

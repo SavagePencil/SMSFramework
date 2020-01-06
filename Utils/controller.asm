@@ -11,12 +11,12 @@
 .ENUMID CONTROLLER_TYPE_SMS_JOYPAD  ; D-Pad + 1 & 2 buttons
 
 ; Keeps an FSM for the controller--whatever its type--and data relevant to it.
-.STRUCT Controller
-    ControllerFSM   INSTANCEOF FSM
+.STRUCT sController
+    ControllerFSM   INSTANCEOF sFSM
     ControllerType  DB
 
     .UNION Joypad
-        Data INSTANCEOF ControllerData_Joypad
+        Data INSTANCEOF sControllerData_Joypad
     .ENDU
 .ENDST
 

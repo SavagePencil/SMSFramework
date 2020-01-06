@@ -2,7 +2,7 @@
 .INCLUDE "Utils/vdpregisters.asm"
 
 ; Maintains a copy of the VDP registers
-.STRUCT VDPRegisterShadow
+.STRUCT sVDPRegisterShadow
     .UNION
         Register0           DB
     .NEXTU
@@ -70,7 +70,7 @@
     .ENDU
 .ENDST
 
-.STRUCT VDPPalette
+.STRUCT sVDPPalette
     BGOnlyPalette DSB 16        ; First palette can only be used by the BG
     SpritePalette DSB 16        ; Second palette can be used by sprite or BG
 .ENDST
@@ -80,16 +80,16 @@
 ; current state without having to go to VRAM (or when the values themselves
 ; aren't queryable, as in the case of CRAM).
 ;==============================================================================
-.STRUCT VDPManager
+.STRUCT sVDPManager
     ; Maintain a shadow copy of each of the VDP registers
-    Registers INSTANCEOF VDPRegisterShadow
+    Registers INSTANCEOF sVDPRegisterShadow
 
     ; Maintain a copy of the palettes, since CRAM can't be read
-    Palette INSTANCEOF VDPPalette
+    Palette INSTANCEOF sVDPPalette
 .ENDST
 
 .RAMSECTION "VDP Manager" SLOT 3
-    gVDPManager INSTANCEOF VDPManager
+    gVDPManager INSTANCEOF sVDPManager
 .ENDS 
 
 .SECTION "VDP Manager Init" FREE

@@ -1,7 +1,7 @@
 .IFNDEF __MODE_MANAGER_ASM__
 .DEFINE __MODE_MANAGER_ASM__
 
-.STRUCT ApplicationMode
+.STRUCT sApplicationMode
     ; The video interrupt handler is special, for optimization purposes:
     ; 1. It is a JUMP TARGET rather than a subroutine.  You'll have to provide your own RET.
     ; 2. We need the tightest loops for handling HBLANKs.
@@ -15,7 +15,7 @@
 .ENDST
 
 .DEFINE MODEMANAGER_MAX_MODE_DEPTH 4    ; Max #/modes allowed
-.STRUCT ModeManager
+.STRUCT sModeManager
     CurrMode                        DW  ; Cache of pointer to current mode
     CurrVideoInterruptJumpTarget    DW  ; Where are we jumping to on video interrupt?
     TopOfStack                      DW  ; Pointer to current top of stack
@@ -23,7 +23,7 @@
 .ENDST
 
 .RAMSECTION "Mode Manager" SLOT 3
-    gModeManager INSTANCEOF ModeManager
+    gModeManager INSTANCEOF sModeManager
 .ENDS 
 
 .SECTION "Mode Manager Routines" FREE
@@ -73,14 +73,14 @@ ModeManager_Init:
     ld      ix, (gModeManager.CurrMode)
 
     ; Prep the video interrupt in a global.
-    ld      l, (ix + ApplicationMode.VideoInterruptJumpTarget + 0)
-    ld      h, (ix + ApplicationMode.VideoInterruptJumpTarget + 1)
+    ld      l, (ix + sApplicationMode.VideoInterruptJumpTarget + 0)
+    ld      h, (ix + sApplicationMode.VideoInterruptJumpTarget + 1)
     ld      (gModeManager.CurrVideoInterruptJumpTarget), hl
 
 
     ; Now call the OnActiveStateChanged for this mode.
-    ld      l, (ix + ApplicationMode.OnActive)
-    ld      h, (ix + ApplicationMode.OnActive + 1)
+    ld      l, (ix + sApplicationMode.OnActive)
+    ld      h, (ix + sApplicationMode.OnActive + 1)
     ld      a, MODE_PUSHED_ON
     jp      (hl)
 
@@ -98,8 +98,8 @@ ModeManager_SetMode:
 
     ; Tell the old active mode they are now inactive.
     ld      ix, (gModeManager.CurrMode)
-    ld      l, (ix + ApplicationMode.OnInactive + 0)
-    ld      h, (ix + ApplicationMode.OnInactive + 1)
+    ld      l, (ix + sApplicationMode.OnInactive + 0)
+    ld      h, (ix + sApplicationMode.OnInactive + 1)
     ld      a, MODE_MADE_INACTIVE
     call    CallHL      ; Execute the function, then return here.
 
@@ -108,13 +108,13 @@ ModeManager_SetMode:
     ld      (gModeManager.CurrMode), ix
 
     ; Prep the video interrupt in a global.
-    ld      l, (ix + ApplicationMode.VideoInterruptJumpTarget + 0)
-    ld      h, (ix + ApplicationMode.VideoInterruptJumpTarget + 1)
+    ld      l, (ix + sApplicationMode.VideoInterruptJumpTarget + 0)
+    ld      h, (ix + sApplicationMode.VideoInterruptJumpTarget + 1)
     ld      (gModeManager.CurrVideoInterruptJumpTarget), hl
 
     ; Tell the new mode that they are now active.
-    ld      l, (ix + ApplicationMode.OnActive + 0)
-    ld      h, (ix + ApplicationMode.OnActive + 1)
+    ld      l, (ix + sApplicationMode.OnActive + 0)
+    ld      h, (ix + sApplicationMode.OnActive + 1)
     ld      a, MODE_MADE_ACTIVE
     jp      (hl)
 
@@ -133,8 +133,8 @@ ModeManager_PushMode:
     ; Tell the old active mode that they are inactive; someone
     ; else got pushed on top of them.
     ld      ix, (gModeManager.CurrMode)
-    ld      l, (ix + ApplicationMode.OnInactive + 0)
-    ld      h, (ix + ApplicationMode.OnInactive + 1)
+    ld      l, (ix + sApplicationMode.OnInactive + 0)
+    ld      h, (ix + sApplicationMode.OnInactive + 1)
     ld      a, MODE_OTHER_POPPED_ON
     call    CallHL      ; Execute the function, then return here.
 
@@ -160,13 +160,13 @@ ModeManager_PushMode:
     ld      ix, (gModeManager.CurrMode)
 
     ; Prep the video interrupt in a global.
-    ld      l, (ix + ApplicationMode.VideoInterruptJumpTarget + 0)
-    ld      h, (ix + ApplicationMode.VideoInterruptJumpTarget + 1)
+    ld      l, (ix + sApplicationMode.VideoInterruptJumpTarget + 0)
+    ld      h, (ix + sApplicationMode.VideoInterruptJumpTarget + 1)
     ld      (gModeManager.CurrVideoInterruptJumpTarget), hl
 
     ; Now call the OnActiveStateChanged for the new mode.
-    ld      l, (ix + ApplicationMode.OnActive + 0)
-    ld      h, (ix + ApplicationMode.OnActive + 1)
+    ld      l, (ix + sApplicationMode.OnActive + 0)
+    ld      h, (ix + sApplicationMode.OnActive + 1)
     ld      a, MODE_PUSHED_ON
     jp      (hl)
 
@@ -182,8 +182,8 @@ ModeManager_PopMode:
     ; Tell the old active mode that they are inactive; they
     ; just got popped off.
     ld      ix, (gModeManager.CurrMode)
-    ld      l, (ix + ApplicationMode.OnInactive + 0)
-    ld      h, (ix + ApplicationMode.OnInactive + 1)
+    ld      l, (ix + sApplicationMode.OnInactive + 0)
+    ld      h, (ix + sApplicationMode.OnInactive + 1)
     ld      a, MODE_POPPED_OFF
     call    CallHL      ; Execute the function, then return here.
 
@@ -208,13 +208,13 @@ ModeManager_PopMode:
     ld      ix, (gModeManager.CurrMode)
 
     ; Prep the video interrupt in a global.
-    ld      l, (ix + ApplicationMode.VideoInterruptJumpTarget + 0)
-    ld      h, (ix + ApplicationMode.VideoInterruptJumpTarget + 1)
+    ld      l, (ix + sApplicationMode.VideoInterruptJumpTarget + 0)
+    ld      h, (ix + sApplicationMode.VideoInterruptJumpTarget + 1)
     ld      (gModeManager.CurrVideoInterruptJumpTarget), hl
 
     ; Now call the OnActiveStateChanged for the new mode.
-    ld      l, (ix + ApplicationMode.OnActive + 0)
-    ld      h, (ix + ApplicationMode.OnActive + 1)
+    ld      l, (ix + sApplicationMode.OnActive + 0)
+    ld      h, (ix + sApplicationMode.OnActive + 1)
     ld      a, MODE_OTHER_POPPED_OFF
     jp      (hl)
 
@@ -228,8 +228,8 @@ ModeManager_PopMode:
 ;==============================================================================
 ModeManager_OnNMI:
     ld  ix, (gModeManager.CurrMode)
-    ld  l, (ix + ApplicationMode.OnNMI + 0)
-    ld  h, (ix + ApplicationMode.OnNMI + 1)
+    ld  l, (ix + sApplicationMode.OnNMI + 0)
+    ld  h, (ix + sApplicationMode.OnNMI + 1)
     jp (hl)
 
 ;==============================================================================
@@ -241,8 +241,8 @@ ModeManager_OnNMI:
 ;==============================================================================
 ModeManager_OnUpdate:
     ld  ix, (gModeManager.CurrMode)
-    ld  l, (ix + ApplicationMode.OnUpdate + 0)
-    ld  h, (ix + ApplicationMode.OnUpdate + 1)
+    ld  l, (ix + sApplicationMode.OnUpdate + 0)
+    ld  h, (ix + sApplicationMode.OnUpdate + 1)
     jp (hl)
 
 ;==============================================================================
@@ -254,8 +254,8 @@ ModeManager_OnUpdate:
 ;==============================================================================
 ModeManager_OnRenderPrep:
     ld  ix, (gModeManager.CurrMode)
-    ld  l, (ix + ApplicationMode.OnRenderPrep + 0)
-    ld  h, (ix + ApplicationMode.OnRenderPrep + 1)
+    ld  l, (ix + sApplicationMode.OnRenderPrep + 0)
+    ld  h, (ix + sApplicationMode.OnRenderPrep + 1)
     jp (hl)
 
 ;==============================================================================
@@ -267,8 +267,8 @@ ModeManager_OnRenderPrep:
 ;==============================================================================
 ModeManager_OnEvent:
     ld  ix, (gModeManager.CurrMode)
-    ld  l, (ix + ApplicationMode.OnEvent + 0)
-    ld  h, (ix + ApplicationMode.OnEvent + 1)
+    ld  l, (ix + sApplicationMode.OnEvent + 0)
+    ld  h, (ix + sApplicationMode.OnEvent + 1)
     jp (hl)
 
 .ENDS

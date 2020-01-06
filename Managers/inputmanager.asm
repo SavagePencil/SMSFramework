@@ -2,7 +2,7 @@
 .INCLUDE "Utils/controller.asm"
 
 ; Maintain a copy of the I/O status.
-.STRUCT IOShadow
+.STRUCT sIOShadow
     ControlPort     DB
 .ENDST
 
@@ -21,13 +21,13 @@
 ; abstraction layer, giving the application access without having to deal
 ; with the underlying implementation. 
 ;==============================================================================
-.STRUCT InputManager
+.STRUCT sInputManager
     ; Maintain a shadow copy of each of the VDP registers
-    IOPortState INSTANCEOF IOShadow
+    IOPortState INSTANCEOF sIOShadow
 
     ; Maintain instances of each controller
-    Controller1 INSTANCEOF Controller
-    Controller2 INSTANCEOF Controller
+    Controller1 INSTANCEOF sController
+    Controller2 INSTANCEOF sController
 
     ; Region (US, JP, etc.)
     Region      DB
@@ -37,7 +37,7 @@
 .ENDST
 
 .RAMSECTION "Input Manager" SLOT 3
-    gInputManager INSTANCEOF InputManager
+    gInputManager INSTANCEOF sInputManager
 .ENDS 
 
 .SECTION "Input Manager Init" FREE
@@ -114,7 +114,7 @@ InputManager_SetController:
     ld  ix, gInputManager.Controller2.ControllerFSM
 __InputManager_SetController_PortDetermined:
     ; Store the controller type.
-    ld  (iy + Controller.ControllerType), b
+    ld  (iy + sController.ControllerType), b
 
     ; Initialize the FSM.
     call FSM_Init

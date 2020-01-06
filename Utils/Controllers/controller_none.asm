@@ -3,7 +3,7 @@
 
 .SECTION "Controller None" FREE
 
-.DSTRUCT Controller_None_State INSTANCEOF State VALUES
+.DSTRUCT Controller_None_State INSTANCEOF sState VALUES
 .ENDST
 
 .ENDS

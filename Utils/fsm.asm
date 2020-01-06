@@ -1,11 +1,11 @@
 .IFNDEF __FSM_ASM__
 .DEFINE __FSM_ASM__
 
-.STRUCT FSM
+.STRUCT sFSM
     CurrentState    DW
 .ENDST
 
-.STRUCT State
+.STRUCT sState
     OnUpdate        DW
     OnEnter         DW
     OnExit          DW
@@ -21,8 +21,8 @@
 ;==============================================================================
 FSM_OnUpdate:
     ; Get the pointer to the state.
-    ld      l, (ix + FSM.CurrentState + 0)
-    ld      h, (ix + FSM.CurrentState + 1)
+    ld      l, (ix + sFSM.CurrentState + 0)
+    ld      h, (ix + sFSM.CurrentState + 1)
 
     ; Get the OnUpdate pointer.
     ld      a, (hl)
@@ -55,11 +55,11 @@ FSM_ChangeState:
     push    hl      ; Save new state to transition to.
 
     ; Get the pointer to the *current* state.
-    ld      l, (ix + FSM.CurrentState + 0)
-    ld      h, (ix + FSM.CurrentState + 1)
+    ld      l, (ix + sFSM.CurrentState + 0)
+    ld      h, (ix + sFSM.CurrentState + 1)
 
     ; Advance to the OnExit function pointer.
-    .REPEAT State.OnExit
+    .REPEAT sState.OnExit
         inc     hl
     .ENDR
 
@@ -90,11 +90,11 @@ FSM_ChangeState:
 ;==============================================================================
 FSM_Init:
     ; Store the state in the FSM
-    ld      (ix + FSM.CurrentState + 0), l
-    ld      (ix + FSM.CurrentState + 1), h
+    ld      (ix + sFSM.CurrentState + 0), l
+    ld      (ix + sFSM.CurrentState + 1), h
 
     ; Advance to the OnEnter function pointer.
-    .REPEAT State.OnEnter
+    .REPEAT sState.OnEnter
         inc     hl
     .ENDR
 
@@ -128,8 +128,8 @@ FSM_Init:
 ;==============================================================================
 FSM_OnEvent:
     ; Get the pointer to the state.
-    ld      l, (ix + FSM.CurrentState + 0)
-    ld      h, (ix + FSM.CurrentState + 1)
+    ld      l, (ix + sFSM.CurrentState + 0)
+    ld      h, (ix + sFSM.CurrentState + 1)
 
     ; Advance to the appropriate function pointer.
     add     hl, de
