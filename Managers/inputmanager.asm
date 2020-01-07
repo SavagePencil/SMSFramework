@@ -85,10 +85,10 @@ InputManager_Init:
 ;==============================================================================
 InputManager_OnUpdate:
     ld      ix, gInputManager.Controller1.ControllerFSM
-    call    FSM_OnUpdate
+    call    FSM_IX@OnUpdate
 
     ld      ix, gInputManager.Controller2.ControllerFSM
-    call    FSM_OnUpdate
+    call    FSM_IX@OnUpdate
 
     ret
 .ENDS
@@ -117,7 +117,7 @@ __InputManager_SetController_PortDetermined:
     ld  (iy + sController.ControllerType), b
 
     ; Initialize the FSM.
-    call FSM_Init
+    call FSM_IX@Init
     ret
 
 .ENDS
