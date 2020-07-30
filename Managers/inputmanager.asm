@@ -1,3 +1,6 @@
+.IFNDEF __INPUT_MANAGER_ASM__
+.DEFINE __INPUT_MANAGER_ASM__
+
 .INCLUDE "Utils/input.asm"
 .INCLUDE "Utils/controller.asm"
 
@@ -135,3 +138,5 @@ InputManager_SetIOControlPortImmediate:
     out (IO_CONTROL_PORT), a
     ret
 .ENDS
+
+.ENDIF ;__INPUT_MANAGER_ASM__

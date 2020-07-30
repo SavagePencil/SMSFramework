@@ -1,3 +1,6 @@
+.IFNDEF __VDP_MANAGER_ASM__
+.DEFINE __VDP_MANAGER_ASM__
+
 .INCLUDE "Utils/vdp.asm"
 .INCLUDE "Utils/vdpregisters.asm"
 
@@ -242,3 +245,5 @@ VDPManager_SetPaletteEntriesImmediate
     djnz    -
     ret
 .ENDS
+
+.ENDIF ;__VDP_MANAGER_ASM__
