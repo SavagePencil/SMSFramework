@@ -315,7 +315,7 @@ VDP_WriteRegister:
 ; INPUTS:  E:  Entry to set (0..31)
 ;          C:  Color value to set
 ; OUTPUTS:  None
-; Destroys A, D, HL.
+; Destroys A.
 ;==============================================================================
 VDP_SetPaletteEntry:
     ; Output to the VDP
